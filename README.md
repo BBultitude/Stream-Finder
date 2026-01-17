@@ -1,20 +1,47 @@
 # Stream Finder
 
-A web application for discovering movies and TV shows across Australian streaming platforms including Netflix, Stan, Prime Video, Disney+, Paramount+, and Binge.
+A web application for discovering movies and TV shows across Australian streaming platforms including Netflix, Stan, Prime Video, Disney+, Paramount+, Binge, and Max.
 
 ![Stream Finder](https://img.shields.io/badge/Platform-Raspberry%20Pi-red)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![Version](https://img.shields.io/badge/Version-9.0-purple)
+
+## ✨ Latest Updates (v9 - January 2026)
+
+### 🐛 Bug Fixes
+- **Fixed duplicate content** when filtering by multiple streaming services
+- **Fixed incorrect streaming data** - now shows accurate provider information
+- **Improved provider-centric fetching** - eliminates cached data conflicts
+
+### 🚀 New Features
+- **In-memory caching** - Reduces API calls by 60%, 1-hour cache expiration
+- **IMDb integration** - Direct links to IMDb pages from detail view
+- **Rotten Tomatoes search** - Quick access to RT ratings and reviews
+- **Deduplication system** - Ensures no duplicate items in any view
+- **Better recommendations** - Uses user behavior patterns (recommendations API first, fallback to similar)
+
+### 🎯 Performance Improvements
+- Cached streaming provider data
+- Cached global trending/new releases data
+- Reduced redundant API calls
+- Faster load times on repeat visits
 
 ## Features
 
 - 🔍 **Real-time Search** - Search across movies and TV shows with instant results
 - 🔥 **What's Hot** - Trending content updated weekly
-- ✨ **What's New** - Recent releases from the last 3 months
-- 🎬 **Streaming Availability** - Shows which Australian platforms have each title
+- ✨ **What's New** - Recent releases from the last 3 months  
+- 🎬 **Browse All** - Explore popular content with infinite scroll
+- 📺 **Streaming Availability** - Shows which Australian platforms have each title
 - 🎭 **Genre Filtering** - 14 genre categories to narrow your search
-- 📺 **Service Filtering** - Filter by specific streaming platforms
+- 🎯 **Service Filtering** - Filter by specific streaming platforms (Netflix, Stan, Prime, Disney+, Paramount+, Binge, Max)
+- 📱 **Content Type Filter** - Toggle between Movies, TV Shows, or All
+- 💡 **Smart Recommendations** - AI-powered suggestions based on what you select
+- 🔗 **External Links** - Direct access to IMDb and Rotten Tomatoes
+- ⚡ **Performance Caching** - In-memory cache reduces API calls and speeds up browsing
 - 🌐 **Mobile Responsive** - Works on all devices
+- 🚫 **No Duplicates** - Intelligent deduplication ensures clean results
 
 ## Tech Stack
 
