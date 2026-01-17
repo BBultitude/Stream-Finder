@@ -1,5 +1,8 @@
 const { useState, useEffect } = React;
 
+// Centralized API key
+const TMDB_API_KEY = '8265bd1679663a7ea12ac168da84d2e8';
+
 // Create icon components
 const Search = (props) => React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: props.className }, React.createElement('circle', { cx: '11', cy: '11', r: '8' }), React.createElement('path', { d: 'm21 21-4.3-4.3' }));
 
@@ -20,18 +23,13 @@ const Grid = (props) => React.createElement('svg', { xmlns: 'http://www.w3.org/2
 const ArrowLeft = (props) => React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: props.className }, React.createElement('path', { d: 'm12 19-7-7 7-7' }), React.createElement('path', { d: 'M19 12H5' }));
 
 const STREAMING_SERVICES = [
-  { id: 'netflix', name: 'Netflix', apiName: 'Netflix', color: 'bg-red-600' },
-  { id: 'prime', name: 'Prime Video', apiName: 'Amazon Prime Video', color: 'bg-blue-500' },
-  { id: 'stan', name: 'Stan', apiName: 'Stan', color: 'bg-cyan-600' },
-  { id: 'paramount', name: 'Paramount+', apiName: 'Paramount Plus', color: 'bg-blue-700' },
-  { id: 'disney', name: 'Disney+', apiName: 'Disney Plus', color: 'bg-blue-600' },
-  { id: 'binge', name: 'Binge', apiName: 'Binge', color: 'bg-orange-500' },
-  { id: 'max', name: 'Max', apiName: 'Max', color: 'bg-purple-700' },
-  { id: '7plus', name: '7plus', apiName: '7plus', color: 'bg-red-500' },
-  { id: '9now', name: '9Now', apiName: '9Now', color: 'bg-blue-400' },
-  { id: '10play', name: '10 play', apiName: '10 play', color: 'bg-teal-500' },
-  { id: 'sbs', name: 'SBS On Demand', apiName: 'SBS On Demand', color: 'bg-yellow-600' },
-  { id: 'abc', name: 'ABC iview', apiName: 'ABC iview', color: 'bg-gray-600' }
+  { id: 'netflix', name: 'Netflix', apiName: 'Netflix', providerId: 8, color: 'bg-red-600' },
+  { id: 'prime', name: 'Prime Video', apiName: 'Amazon Prime Video', providerId: 9, color: 'bg-blue-500' },
+  { id: 'stan', name: 'Stan', apiName: 'Stan', providerId: 21, color: 'bg-cyan-600' },
+  { id: 'paramount', name: 'Paramount+', apiName: 'Paramount Plus', providerId: 531, color: 'bg-blue-700' },
+  { id: 'disney', name: 'Disney+', apiName: 'Disney Plus', providerId: 337, color: 'bg-blue-600' },
+  { id: 'binge', name: 'Binge', apiName: 'Binge', providerId: 385, color: 'bg-orange-500' },
+  { id: 'max', name: 'Max', apiName: 'Max', providerId: 1899, color: 'bg-purple-700' }
 ];
 
 const GENRES = [
@@ -80,7 +78,7 @@ function StreamingFinder() {
         try {
           const mediaType = item.media_type || (item.title ? 'movie' : 'tv');
           const providers = await fetch(
-            `https://api.themoviedb.org/3/${mediaType}/${item.id}/watch/providers?api_key=8265bd1679663a7ea12ac168da84d2e8`
+            `https://api.themoviedb.org/3/${mediaType}/${item.id}/watch/providers?api_key=${TMDB_API_KEY}`
           );
           const providerData = await providers.json();
           const auProviders = providerData.results?.AU?.flatrate || [];
@@ -100,17 +98,72 @@ function StreamingFinder() {
     );
   };
 
+  // Fetch content for a specific provider (20 TV + 20 Movies = 40 items)
+  const fetchProviderContent = async (providerId) => {
+    try {
+      const tvRes = await fetch(
+        `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=1`
+      );
+      const movieRes = await fetch(
+        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=1`
+      );
+
+      const tvData = await tvRes.json();
+      const movieData = await movieRes.json();
+
+      const tvShows = tvData.results.slice(0, 20).map(item => ({ ...item, media_type: 'tv' }));
+      const movies = movieData.results.slice(0, 20).map(item => ({ ...item, media_type: 'movie' }));
+
+      return [...tvShows, ...movies];
+    } catch (error) {
+      console.error(`Failed to fetch provider ${providerId}:`, error);
+      return [];
+    }
+  };
+
+  // Global view: fetch multiple pages for rich dataset
+  const fetchGlobalContent = async (endpoint, pages = 5) => {
+    try {
+      const allResults = [];
+      for (let page = 1; page <= pages; page++) {
+        const res = await fetch(`https://api.themoviedb.org/3/${endpoint}&page=${page}`);
+        const data = await res.json();
+        if (data.results) {
+          allResults.push(...data.results);
+        }
+      }
+      return allResults;
+    } catch (error) {
+      console.error('Failed to fetch global content:', error);
+      return [];
+    }
+  };
+
   const loadTrendingContent = async () => {
     setLoading(true);
     try {
-      const response = await fetch(
-        'https://api.themoviedb.org/3/trending/all/week?api_key=8265bd1679663a7ea12ac168da84d2e8'
-      );
-      const data = await response.json();
-      const withStreaming = await fetchWithStreaming(
-        data.results.filter(item => item.media_type === 'movie' || item.media_type === 'tv').slice(0, 20)
-      );
-      setTrendingContent(withStreaming);
+      if (selectedServices.length > 0) {
+        // Provider-centric mode
+        const allProviderContent = [];
+        for (const serviceId of selectedServices) {
+          const service = STREAMING_SERVICES.find(s => s.id === serviceId);
+          if (service) {
+            const content = await fetchProviderContent(service.providerId);
+            allProviderContent.push(...content);
+          }
+        }
+        const withStreaming = await fetchWithStreaming(allProviderContent);
+        setTrendingContent(withStreaming);
+      } else {
+        // Global view
+        const globalData = await fetchGlobalContent(
+          `trending/all/week?api_key=${TMDB_API_KEY}`,
+          5
+        );
+        const filtered = globalData.filter(item => item.media_type === 'movie' || item.media_type === 'tv');
+        const withStreaming = await fetchWithStreaming(filtered.slice(0, 40));
+        setTrendingContent(withStreaming);
+      }
     } catch (error) {
       console.error('Failed to load trending:', error);
     }
@@ -120,27 +173,51 @@ function StreamingFinder() {
   const loadNewReleases = async () => {
     setLoading(true);
     try {
-      const today = new Date();
-      const threeMonthsAgo = new Date(today.setMonth(today.getMonth() - 3));
-      const dateStr = threeMonthsAgo.toISOString().split('T')[0];
-      
-      const moviesRes = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=8265bd1679663a7ea12ac168da84d2e8&sort_by=release_date.desc&release_date.gte=${dateStr}&vote_count.gte=10`);
-      const tvRes = await fetch(`https://api.themoviedb.org/3/discover/tv?api_key=8265bd1679663a7ea12ac168da84d2e8&sort_by=first_air_date.desc&first_air_date.gte=${dateStr}&vote_count.gte=10`);
-      
-      const movies = await moviesRes.json();
-      const tv = await tvRes.json();
-      
-      const combined = [
-        ...movies.results.slice(0, 10).map(m => ({ ...m, media_type: 'movie' })),
-        ...tv.results.slice(0, 10).map(t => ({ ...t, media_type: 'tv' }))
-      ].sort((a, b) => {
-        const dateA = new Date(a.release_date || a.first_air_date);
-        const dateB = new Date(b.release_date || b.first_air_date);
-        return dateB - dateA;
-      });
-      
-      const withStreaming = await fetchWithStreaming(combined.slice(0, 20));
-      setNewReleases(withStreaming);
+      if (selectedServices.length > 0) {
+        // Provider-centric mode
+        const allProviderContent = [];
+        for (const serviceId of selectedServices) {
+          const service = STREAMING_SERVICES.find(s => s.id === serviceId);
+          if (service) {
+            const content = await fetchProviderContent(service.providerId);
+            allProviderContent.push(...content);
+          }
+        }
+        const withStreaming = await fetchWithStreaming(allProviderContent);
+        // Sort by release date
+        const sorted = withStreaming.sort((a, b) => {
+          const dateA = new Date(a.release_date || a.first_air_date || 0);
+          const dateB = new Date(b.release_date || b.first_air_date || 0);
+          return dateB - dateA;
+        });
+        setNewReleases(sorted);
+      } else {
+        // Global view
+        const today = new Date();
+        const threeMonthsAgo = new Date(today.setMonth(today.getMonth() - 3));
+        const dateStr = threeMonthsAgo.toISOString().split('T')[0];
+
+        const movies = await fetchGlobalContent(
+          `discover/movie?api_key=${TMDB_API_KEY}&sort_by=release_date.desc&release_date.gte=${dateStr}&vote_count.gte=10`,
+          3
+        );
+        const tv = await fetchGlobalContent(
+          `discover/tv?api_key=${TMDB_API_KEY}&sort_by=first_air_date.desc&first_air_date.gte=${dateStr}&vote_count.gte=10`,
+          3
+        );
+
+        const combined = [
+          ...movies.map(m => ({ ...m, media_type: 'movie' })),
+          ...tv.map(t => ({ ...t, media_type: 'tv' }))
+        ].sort((a, b) => {
+          const dateA = new Date(a.release_date || a.first_air_date);
+          const dateB = new Date(b.release_date || b.first_air_date);
+          return dateB - dateA;
+        });
+
+        const withStreaming = await fetchWithStreaming(combined.slice(0, 40));
+        setNewReleases(withStreaming);
+      }
     } catch (error) {
       console.error('Failed to load new releases:', error);
     }
@@ -150,22 +227,44 @@ function StreamingFinder() {
   const loadBrowseAll = async (page = 1) => {
     setLoading(true);
     try {
-      const movieRes = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=8265bd1679663a7ea12ac168da84d2e8&sort_by=popularity.desc&page=${page}`);
-      const tvRes = await fetch(`https://api.themoviedb.org/3/discover/tv?api_key=8265bd1679663a7ea12ac168da84d2e8&sort_by=popularity.desc&page=${page}`);
-      
-      const movies = await movieRes.json();
-      const tv = await tvRes.json();
-      
-      const combined = [
-        ...movies.results.slice(0, 10).map(m => ({ ...m, media_type: 'movie' })),
-        ...tv.results.slice(0, 10).map(t => ({ ...t, media_type: 'tv' }))
-      ];
-      
-      const withStreaming = await fetchWithStreaming(combined);
-      if (page === 1) {
-        setBrowseAll(withStreaming);
+      if (selectedServices.length > 0) {
+        // Provider-centric mode
+        const allProviderContent = [];
+        for (const serviceId of selectedServices) {
+          const service = STREAMING_SERVICES.find(s => s.id === serviceId);
+          if (service) {
+            const content = await fetchProviderContent(service.providerId);
+            allProviderContent.push(...content);
+          }
+        }
+        const withStreaming = await fetchWithStreaming(allProviderContent);
+        if (page === 1) {
+          setBrowseAll(withStreaming);
+        } else {
+          setBrowseAll(prev => [...prev, ...withStreaming]);
+        }
       } else {
-        setBrowseAll(prev => [...prev, ...withStreaming]);
+        // Global view
+        const movies = await fetchGlobalContent(
+          `discover/movie?api_key=${TMDB_API_KEY}&sort_by=popularity.desc`,
+          3
+        );
+        const tv = await fetchGlobalContent(
+          `discover/tv?api_key=${TMDB_API_KEY}&sort_by=popularity.desc`,
+          3
+        );
+
+        const combined = [
+          ...movies.map(m => ({ ...m, media_type: 'movie' })),
+          ...tv.map(t => ({ ...t, media_type: 'tv' }))
+        ];
+
+        const withStreaming = await fetchWithStreaming(combined.slice(0, 40));
+        if (page === 1) {
+          setBrowseAll(withStreaming);
+        } else {
+          setBrowseAll(prev => [...prev, ...withStreaming]);
+        }
       }
     } catch (error) {
       console.error('Failed to load browse all:', error);
@@ -179,6 +278,13 @@ function StreamingFinder() {
     loadBrowseAll();
   }, []);
 
+  // Reload content when providers change
+  useEffect(() => {
+    if (activeTab === 'trending') loadTrendingContent();
+    else if (activeTab === 'new') loadNewReleases();
+    else if (activeTab === 'browse') loadBrowseAll(1);
+  }, [selectedServices]);
+
   const searchContent = async (query) => {
     if (!query.trim()) {
       setResults([]);
@@ -188,7 +294,7 @@ function StreamingFinder() {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://api.themoviedb.org/3/search/multi?api_key=8265bd1679663a7ea12ac168da84d2e8&language=en-US&query=${encodeURIComponent(query)}&page=1`
+        `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(query)}&page=1`
       );
       const data = await response.json();
       
@@ -209,14 +315,14 @@ function StreamingFinder() {
     try {
       // Try recommendations API first (better quality, based on user behavior)
       let response = await fetch(
-        `https://api.themoviedb.org/3/${item.media_type}/${item.id}/recommendations?api_key=8265bd1679663a7ea12ac168da84d2e8&page=1`
+        `https://api.themoviedb.org/3/${item.media_type}/${item.id}/recommendations?api_key=${TMDB_API_KEY}&page=1`
       );
       let data = await response.json();
       
       // If no recommendations, fall back to similar API
       if (!data.results || data.results.length === 0) {
         response = await fetch(
-          `https://api.themoviedb.org/3/${item.media_type}/${item.id}/similar?api_key=8265bd1679663a7ea12ac168da84d2e8&page=1`
+          `https://api.themoviedb.org/3/${item.media_type}/${item.id}/similar?api_key=${TMDB_API_KEY}&page=1`
         );
         data = await response.json();
       }
@@ -262,7 +368,20 @@ function StreamingFinder() {
   const filterContent = (content) => {
     let filtered = content;
 
-    if (selectedServices.length > 0) {
+    // Apply genre filter first
+    if (selectedGenres.length > 0) {
+      filtered = filtered.filter(item =>
+        item.genre_ids && item.genre_ids.some(gid => selectedGenres.includes(gid))
+      );
+    }
+
+    // Apply content type filter
+    if (selectedContentType !== 'all') {
+      filtered = filtered.filter(item => item.media_type === selectedContentType);
+    }
+
+    // Provider filtering for search results only (provider-centric mode handles this during fetch)
+    if (searchQuery && selectedServices.length > 0) {
       filtered = filtered.filter(item =>
         item.streaming.some(s =>
           selectedServices.some(selectedId => {
@@ -272,16 +391,6 @@ function StreamingFinder() {
           })
         )
       );
-    }
-
-    if (selectedGenres.length > 0) {
-      filtered = filtered.filter(item =>
-        item.genre_ids && item.genre_ids.some(gid => selectedGenres.includes(gid))
-      );
-    }
-
-    if (selectedContentType !== 'all') {
-      filtered = filtered.filter(item => item.media_type === selectedContentType);
     }
 
     return filtered;
@@ -301,7 +410,7 @@ function StreamingFinder() {
         React.createElement('div', { className: 'max-w-6xl mx-auto' },
           React.createElement('button', {
             onClick: () => setSelectedItem(null),
-            className: 'mb-4 flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors'
+            className: 'mb-4 flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-white'
           },
             React.createElement(ArrowLeft, { className: 'w-5 h-5' }),
             'Back'
@@ -318,31 +427,31 @@ function StreamingFinder() {
                 )
               ),
               React.createElement('div', { className: 'md:col-span-2' },
-                React.createElement('h1', { className: 'text-4xl font-bold mb-4' }, selectedItem.title || selectedItem.name),
+                React.createElement('h1', { className: 'text-4xl font-bold mb-4 text-white' }, selectedItem.title || selectedItem.name),
                 React.createElement('div', { className: 'flex flex-wrap gap-2 mb-4' },
-                  React.createElement('span', { className: 'px-3 py-1 bg-purple-600 rounded-full text-sm' },
+                  React.createElement('span', { className: 'px-3 py-1 bg-purple-600 rounded-full text-sm text-white' },
                     selectedItem.media_type === 'movie' ? 'Movie' : 'TV Show'
                   ),
-                  selectedItem.vote_average > 0 && React.createElement('span', { className: 'px-3 py-1 bg-yellow-600 rounded-full text-sm flex items-center gap-1' },
+                  selectedItem.vote_average > 0 && React.createElement('span', { className: 'px-3 py-1 bg-yellow-600 rounded-full text-sm flex items-center gap-1 text-white' },
                     `★ ${selectedItem.vote_average.toFixed(1)}`
                   ),
-                  (selectedItem.release_date || selectedItem.first_air_date) && React.createElement('span', { className: 'px-3 py-1 bg-gray-700 rounded-full text-sm' },
+                  (selectedItem.release_date || selectedItem.first_air_date) && React.createElement('span', { className: 'px-3 py-1 bg-gray-700 rounded-full text-sm text-white' },
                     new Date(selectedItem.release_date || selectedItem.first_air_date).getFullYear()
                   )
                 ),
                 selectedItem.streaming && selectedItem.streaming.length > 0 && React.createElement('div', { className: 'mb-6' },
-                  React.createElement('h3', { className: 'text-sm text-gray-400 mb-2' }, 'Available on:'),
+                  React.createElement('h3', { className: 'text-sm text-gray-300 mb-2' }, 'Available on:'),
                   React.createElement('div', { className: 'flex flex-wrap gap-2' },
                     selectedItem.streaming.map((service, idx) =>
                       React.createElement('div', { key: idx, className: 'flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg' },
                         React.createElement('img', { src: service.logo, alt: service.name, className: 'w-6 h-6 rounded' }),
-                        React.createElement('span', { className: 'text-sm' }, service.name)
+                        React.createElement('span', { className: 'text-sm text-white' }, service.name)
                       )
                     )
                   )
                 ),
                 React.createElement('div', { className: 'mb-6' },
-                  React.createElement('h3', { className: 'text-xl font-semibold mb-2' }, 'Overview'),
+                  React.createElement('h3', { className: 'text-xl font-semibold mb-2 text-white' }, 'Overview'),
                   React.createElement('p', { className: 'text-gray-300 leading-relaxed' },
                     selectedItem.overview || 'No overview available.'
                   )
@@ -350,7 +459,7 @@ function StreamingFinder() {
               )
             ),
             similarContent.length > 0 && React.createElement('div', { className: 'px-6 pb-6' },
-              React.createElement('h3', { className: 'text-2xl font-bold mb-4' }, 'Recommended For You'),
+              React.createElement('h3', { className: 'text-2xl font-bold mb-4 text-white' }, 'Recommended For You'),
               React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4' },
                 similarContent.map(similar =>
                   React.createElement('div', {
@@ -366,9 +475,9 @@ function StreamingFinder() {
                       similar.media_type === 'movie' ? React.createElement(Film, { className: 'w-12 h-12 text-gray-600' }) : React.createElement(Tv, { className: 'w-12 h-12 text-gray-600' })
                     ),
                     React.createElement('div', { className: 'p-4' },
-                      React.createElement('h3', { className: 'font-semibold text-sm mb-2 line-clamp-2' }, similar.title || similar.name),
+                      React.createElement('h3', { className: 'font-semibold text-sm mb-2 line-clamp-2 text-white' }, similar.title || similar.name),
                       React.createElement('div', { className: 'flex items-center gap-2 mb-3 flex-wrap' },
-                        React.createElement('span', { className: 'text-xs px-2 py-1 bg-gray-700 rounded' },
+                        React.createElement('span', { className: 'text-xs px-2 py-1 bg-gray-700 rounded text-white' },
                           similar.media_type === 'movie' ? 'Movie' : 'TV Show'
                         ),
                         similar.vote_average > 0 && React.createElement('span', { className: 'text-xs text-yellow-400' },
@@ -399,7 +508,7 @@ function StreamingFinder() {
     React.createElement('div', { className: 'max-w-7xl mx-auto px-4 py-8' },
       React.createElement('div', { className: 'text-center mb-12' },
         React.createElement('h1', { className: 'text-5xl font-bold mb-3 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-transparent bg-clip-text' }, 'Stream Finder'),
-        React.createElement('p', { className: 'text-gray-400' }, 'Find what to watch across all Australian streaming platforms')
+        React.createElement('p', { className: 'text-gray-300' }, 'Find what to watch across all Australian streaming platforms')
       ),
       React.createElement('div', { className: 'max-w-3xl mx-auto mb-8' },
         React.createElement('div', { className: 'relative' },
@@ -417,10 +526,10 @@ function StreamingFinder() {
         React.createElement('div', null,
           React.createElement('button', {
             onClick: () => setShowServiceFilters(!showServiceFilters),
-            className: 'flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors'
+            className: 'flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-white'
           },
             React.createElement('span', null, 'Filter by Streaming Service'),
-            selectedServices.length > 0 && React.createElement('span', { className: 'px-2 py-0.5 bg-purple-600 rounded text-xs' }, selectedServices.length),
+            selectedServices.length > 0 && React.createElement('span', { className: 'px-2 py-0.5 bg-purple-600 rounded text-xs text-white' }, selectedServices.length),
             React.createElement(ChevronDown, { className: `w-4 h-4 transition-transform ${showServiceFilters ? 'rotate-180' : ''}` })
           ),
           showServiceFilters && React.createElement('div', { className: 'mt-4 p-4 bg-gray-800 rounded-xl border border-gray-700' },
@@ -432,7 +541,7 @@ function StreamingFinder() {
                   className: `px-4 py-2 rounded-lg font-medium transition-all ${
                     selectedServices.includes(service.id)
                       ? `${service.color} text-white shadow-lg scale-105`
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                   }`
                 }, service.name)
               )
@@ -442,10 +551,10 @@ function StreamingFinder() {
         React.createElement('div', null,
           React.createElement('button', {
             onClick: () => setShowGenreFilters(!showGenreFilters),
-            className: 'flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors'
+            className: 'flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-white'
           },
             React.createElement('span', null, 'Filter by Genre'),
-            selectedGenres.length > 0 && React.createElement('span', { className: 'px-2 py-0.5 bg-purple-600 rounded text-xs' }, selectedGenres.length),
+            selectedGenres.length > 0 && React.createElement('span', { className: 'px-2 py-0.5 bg-purple-600 rounded text-xs text-white' }, selectedGenres.length),
             React.createElement(ChevronDown, { className: `w-4 h-4 transition-transform ${showGenreFilters ? 'rotate-180' : ''}` })
           ),
           showGenreFilters && React.createElement('div', { className: 'mt-4 p-4 bg-gray-800 rounded-xl border border-gray-700' },
@@ -457,7 +566,7 @@ function StreamingFinder() {
                   className: `px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     selectedGenres.includes(genre.id)
                       ? 'bg-purple-600 text-white shadow-lg scale-105'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                   }`
                 }, genre.name)
               )
@@ -465,7 +574,7 @@ function StreamingFinder() {
           )
         ),
         React.createElement('div', { className: 'flex flex-wrap gap-2' },
-          React.createElement('span', { className: 'text-sm text-gray-400 self-center' }, 'Content Type:'),
+          React.createElement('span', { className: 'text-sm text-gray-300 self-center' }, 'Content Type:'),
           CONTENT_TYPES.map(type =>
             React.createElement('button', {
               key: type.id,
@@ -473,7 +582,7 @@ function StreamingFinder() {
               className: `px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 selectedContentType === type.id
                   ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
               }`
             }, type.name)
           )
@@ -484,7 +593,7 @@ function StreamingFinder() {
             setSelectedGenres([]);
             setSelectedContentType('all');
           },
-          className: 'text-sm text-gray-400 hover:text-white flex items-center gap-1'
+          className: 'text-sm text-gray-300 hover:text-white flex items-center gap-1'
         },
           React.createElement(X, { className: 'w-3 h-3' }),
           'Clear all filters'
@@ -496,7 +605,7 @@ function StreamingFinder() {
           className: `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
             activeTab === 'trending'
               ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
           }`
         },
           React.createElement(TrendingUp, { className: 'w-5 h-5' }),
@@ -507,7 +616,7 @@ function StreamingFinder() {
           className: `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
             activeTab === 'new'
               ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
           }`
         },
           React.createElement(Sparkles, { className: 'w-5 h-5' }),
@@ -518,7 +627,7 @@ function StreamingFinder() {
           className: `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
             activeTab === 'browse'
               ? 'bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-lg'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
           }`
         },
           React.createElement(Grid, { className: 'w-5 h-5' }),
@@ -529,8 +638,8 @@ function StreamingFinder() {
         React.createElement('div', { className: 'inline-block w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin' })
       ),
       !loading && displayContent.length > 0 && React.createElement(React.Fragment, null,
-        searchQuery && React.createElement('h2', { className: 'text-2xl font-bold mb-6' }, 'Search Results'),
-        !searchQuery && React.createElement('h2', { className: 'text-2xl font-bold mb-6' },
+        searchQuery && React.createElement('h2', { className: 'text-2xl font-bold mb-6 text-white' }, 'Search Results'),
+        !searchQuery && React.createElement('h2', { className: 'text-2xl font-bold mb-6 text-white' },
           activeTab === 'trending' ? "🔥 What's Hot This Week" :
           activeTab === 'new' ? "✨ New Releases" :
           "🎬 Browse All Content"
@@ -550,9 +659,9 @@ function StreamingFinder() {
                 item.media_type === 'movie' ? React.createElement(Film, { className: 'w-12 h-12 text-gray-600' }) : React.createElement(Tv, { className: 'w-12 h-12 text-gray-600' })
               ),
               React.createElement('div', { className: 'p-4' },
-                React.createElement('h3', { className: 'font-semibold text-sm mb-2 line-clamp-2' }, item.title || item.name),
+                React.createElement('h3', { className: 'font-semibold text-sm mb-2 line-clamp-2 text-white' }, item.title || item.name),
                 React.createElement('div', { className: 'flex items-center gap-2 mb-3 flex-wrap' },
-                  React.createElement('span', { className: 'text-xs px-2 py-1 bg-gray-700 rounded' },
+                  React.createElement('span', { className: 'text-xs px-2 py-1 bg-gray-700 rounded text-white' },
                     item.media_type === 'movie' ? 'Movie' : 'TV Show'
                   ),
                   item.vote_average > 0 && React.createElement('span', { className: 'text-xs text-yellow-400' },
@@ -579,11 +688,11 @@ function StreamingFinder() {
               setBrowseAllPage(nextPage);
               loadBrowseAll(nextPage);
             },
-            className: 'px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors'
+            className: 'px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors text-white'
           }, 'Load More')
         )
       ),
-      !loading && displayContent.length === 0 && (searchQuery || selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all') && React.createElement('div', { className: 'text-center py-12 text-gray-400' },
+      !loading && displayContent.length === 0 && (searchQuery || selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all') && React.createElement('div', { className: 'text-center py-12 text-gray-300' },
         React.createElement('p', null, 'No results match your filters.'),
         React.createElement('button', {
           onClick: () => {
