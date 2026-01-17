@@ -2,6 +2,9 @@
 
 Complete step-by-step guide for deploying Stream Finder from scratch on a Raspberry Pi.
 
+**Current Version:** v9 (January 2026)
+**Last Updated:** Includes provider-centric fetching, caching, IMDb/RT links, bug fixes
+
 ## Prerequisites Checklist
 
 - [ ] Raspberry Pi with Raspbian/Raspberry Pi OS installed
