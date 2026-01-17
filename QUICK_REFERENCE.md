@@ -1,5 +1,16 @@
 # Stream Finder - Quick Reference Card
 
+**Version:** 9.0 | **Last Updated:** January 2026
+
+## What's New in v9
+
+- ✅ Fixed duplicate content bug
+- ✅ Fixed incorrect streaming provider data
+- ✅ Added in-memory caching (1-hour expiration)
+- ✅ Added IMDb and Rotten Tomatoes links
+- ✅ Improved deduplication system
+- ✅ Better recommendation algorithm
+
 ## Essential Commands
 
 ### Container Management
