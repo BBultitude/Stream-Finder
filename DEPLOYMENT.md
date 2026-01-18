@@ -2,8 +2,37 @@
 
 Complete step-by-step guide for deploying Stream Finder from scratch on a Raspberry Pi.
 
-**Current Version:** v9 (January 2026)
-**Last Updated:** Includes provider-centric fetching, caching, IMDb/RT links, bug fixes
+**Current Version:** v10.1 (January 2026)
+
+## Version History
+
+### v10.1 - IMDb Integration Fix
+- Fixed IMDb links not appearing in detail view
+- Added external_ids API call to dynamically fetch IMDb IDs
+- IMDb button now appears for all content with IMDb entries
+
+### v10.0 - Browse & Search Overhaul
+- Browse All now truly browses ALL content (not cached data)
+- Search automatically deselects tabs for clarity
+- Increased What's Hot and What's New from 40 to 100 items
+- What's New expanded from 3 to 6 months
+- Fixed Load More button in all scenarios
+- Genre filtering now meaningful with larger datasets
+
+### v9.0 - Bug Fixes & Caching
+- Fixed duplicate content when filtering multiple services
+- Fixed incorrect streaming provider data
+- Added in-memory caching (1-hour TTL, 60% API reduction)
+- Improved provider-centric fetching
+- Better recommendations (user behavior based)
+
+### v8.0 - UI & Provider Updates
+- Fixed text visibility on dark backgrounds
+- Removed Australian FTA providers
+- Added Max (HBO Max)
+
+### v7.0 and Earlier
+See README.md for complete version history
 
 ## Prerequisites Checklist
 
