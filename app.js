@@ -3,6 +3,27 @@ const { useState, useEffect } = React;
 // Centralized API key
 const TMDB_API_KEY = '8265bd1679663a7ea12ac168da84d2e8';
 
+// Simple in-memory cache
+const cache = {
+  data: {},
+  get: function(key) {
+    const item = this.data[key];
+    if (!item) return null;
+    // Cache expires after 1 hour
+    if (Date.now() - item.timestamp > 3600000) {
+      delete this.data[key];
+      return null;
+    }
+    return item.value;
+  },
+  set: function(key, value) {
+    this.data[key] = {
+      value: value,
+      timestamp: Date.now()
+    };
+  }
+};
+
 // Create icon components
 const Search = (props) => React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: props.className }, React.createElement('circle', { cx: '11', cy: '11', r: '8' }), React.createElement('path', { d: 'm21 21-4.3-4.3' }));
 
@@ -72,9 +93,23 @@ function StreamingFinder() {
   const [similarContent, setSimilarContent] = useState([]);
   const [browseAllPage, setBrowseAllPage] = useState(1);
 
+  // Deduplicate items by ID
+  const deduplicateById = (items) => {
+    const seen = new Set();
+    return items.filter(item => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
+
   const fetchWithStreaming = async (items) => {
     return await Promise.all(
       items.map(async (item) => {
+        const cacheKey = `streaming_${item.media_type}_${item.id}`;
+        const cached = cache.get(cacheKey);
+        if (cached) return { ...item, ...cached };
+
         try {
           const mediaType = item.media_type || (item.title ? 'movie' : 'tv');
           const providers = await fetch(
@@ -83,46 +118,81 @@ function StreamingFinder() {
           const providerData = await providers.json();
           const auProviders = providerData.results?.AU?.flatrate || [];
           
-          return {
-            ...item,
+          const result = {
             media_type: mediaType,
             streaming: auProviders.map(p => ({
               name: p.provider_name,
               logo: `https://image.tmdb.org/t/p/original${p.logo_path}`
             }))
           };
+
+          cache.set(cacheKey, result);
+          
+          return {
+            ...item,
+            ...result
+          };
         } catch {
-          return { ...item, streaming: [] };
+          return { ...item, media_type: item.media_type || 'movie', streaming: [] };
         }
       })
     );
   };
 
-  // Fetch content for a specific provider (20 TV + 20 Movies = 40 items)
-  const fetchProviderContent = async (providerId) => {
-    try {
-      const tvRes = await fetch(
-        `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=1`
-      );
-      const movieRes = await fetch(
-        `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=1`
-      );
+  // Fetch content for specific providers (used when filters are active)
+  const fetchProviderContent = async (providerIds) => {
+    const allContent = [];
+    
+    for (const providerId of providerIds) {
+      const cacheKey = `provider_${providerId}`;
+      const cached = cache.get(cacheKey);
+      
+      if (cached) {
+        allContent.push(...cached);
+        continue;
+      }
 
-      const tvData = await tvRes.json();
-      const movieData = await movieRes.json();
+      try {
+        const tvRes = await fetch(
+          `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=1`
+        );
+        const movieRes = await fetch(
+          `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=1`
+        );
 
-      const tvShows = tvData.results.slice(0, 20).map(item => ({ ...item, media_type: 'tv' }));
-      const movies = movieData.results.slice(0, 20).map(item => ({ ...item, media_type: 'movie' }));
+        const tvData = await tvRes.json();
+        const movieData = await movieRes.json();
 
-      return [...tvShows, ...movies];
-    } catch (error) {
-      console.error(`Failed to fetch provider ${providerId}:`, error);
-      return [];
+        const providerName = STREAMING_SERVICES.find(s => s.providerId === providerId)?.apiName || 'Unknown';
+        
+        const tvShows = tvData.results.slice(0, 20).map(item => ({ 
+          ...item, 
+          media_type: 'tv',
+          streaming: [{ name: providerName, logo: '' }]
+        }));
+        const movies = movieData.results.slice(0, 20).map(item => ({ 
+          ...item, 
+          media_type: 'movie',
+          streaming: [{ name: providerName, logo: '' }]
+        }));
+
+        const providerContent = [...tvShows, ...movies];
+        cache.set(cacheKey, providerContent);
+        allContent.push(...providerContent);
+      } catch (error) {
+        console.error(`Failed to fetch provider ${providerId}:`, error);
+      }
     }
+
+    return deduplicateById(allContent);
   };
 
   // Global view: fetch multiple pages for rich dataset
   const fetchGlobalContent = async (endpoint, pages = 5) => {
+    const cacheKey = `global_${endpoint}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
     try {
       const allResults = [];
       for (let page = 1; page <= pages; page++) {
@@ -132,6 +202,7 @@ function StreamingFinder() {
           allResults.push(...data.results);
         }
       }
+      cache.set(cacheKey, allResults);
       return allResults;
     } catch (error) {
       console.error('Failed to fetch global content:', error);
@@ -143,26 +214,22 @@ function StreamingFinder() {
     setLoading(true);
     try {
       if (selectedServices.length > 0) {
-        // Provider-centric mode
-        const allProviderContent = [];
-        for (const serviceId of selectedServices) {
-          const service = STREAMING_SERVICES.find(s => s.id === serviceId);
-          if (service) {
-            const content = await fetchProviderContent(service.providerId);
-            allProviderContent.push(...content);
-          }
-        }
-        const withStreaming = await fetchWithStreaming(allProviderContent);
-        setTrendingContent(withStreaming);
+        const providerIds = selectedServices.map(id => 
+          STREAMING_SERVICES.find(s => s.id === id)?.providerId
+        ).filter(Boolean);
+        
+        const content = await fetchProviderContent(providerIds);
+        // Fetch full streaming info with logos
+        const withLogos = await fetchWithStreaming(content);
+        setTrendingContent(deduplicateById(withLogos));
       } else {
-        // Global view
         const globalData = await fetchGlobalContent(
           `trending/all/week?api_key=${TMDB_API_KEY}`,
           5
         );
         const filtered = globalData.filter(item => item.media_type === 'movie' || item.media_type === 'tv');
         const withStreaming = await fetchWithStreaming(filtered.slice(0, 40));
-        setTrendingContent(withStreaming);
+        setTrendingContent(deduplicateById(withStreaming));
       }
     } catch (error) {
       console.error('Failed to load trending:', error);
@@ -174,36 +241,30 @@ function StreamingFinder() {
     setLoading(true);
     try {
       if (selectedServices.length > 0) {
-        // Provider-centric mode
-        const allProviderContent = [];
-        for (const serviceId of selectedServices) {
-          const service = STREAMING_SERVICES.find(s => s.id === serviceId);
-          if (service) {
-            const content = await fetchProviderContent(service.providerId);
-            allProviderContent.push(...content);
-          }
-        }
-        const withStreaming = await fetchWithStreaming(allProviderContent);
-        // Sort by release date
-        const sorted = withStreaming.sort((a, b) => {
+        const providerIds = selectedServices.map(id => 
+          STREAMING_SERVICES.find(s => s.id === id)?.providerId
+        ).filter(Boolean);
+        
+        const content = await fetchProviderContent(providerIds);
+        const withLogos = await fetchWithStreaming(content);
+        const sorted = deduplicateById(withLogos).sort((a, b) => {
           const dateA = new Date(a.release_date || a.first_air_date || 0);
           const dateB = new Date(b.release_date || b.first_air_date || 0);
           return dateB - dateA;
         });
         setNewReleases(sorted);
       } else {
-        // Global view
         const today = new Date();
-        const threeMonthsAgo = new Date(today.setMonth(today.getMonth() - 3));
-        const dateStr = threeMonthsAgo.toISOString().split('T')[0];
+        const sixMonthsAgo = new Date(today.setMonth(today.getMonth() - 6));
+        const dateStr = sixMonthsAgo.toISOString().split('T')[0];
 
         const movies = await fetchGlobalContent(
           `discover/movie?api_key=${TMDB_API_KEY}&sort_by=release_date.desc&release_date.gte=${dateStr}&vote_count.gte=10`,
-          3
+          5
         );
         const tv = await fetchGlobalContent(
           `discover/tv?api_key=${TMDB_API_KEY}&sort_by=first_air_date.desc&first_air_date.gte=${dateStr}&vote_count.gte=10`,
-          3
+          5
         );
 
         const combined = [
@@ -215,8 +276,8 @@ function StreamingFinder() {
           return dateB - dateA;
         });
 
-        const withStreaming = await fetchWithStreaming(combined.slice(0, 40));
-        setNewReleases(withStreaming);
+        const withStreaming = await fetchWithStreaming(combined.slice(0, 100));
+        setNewReleases(deduplicateById(withStreaming));
       }
     } catch (error) {
       console.error('Failed to load new releases:', error);
@@ -228,42 +289,75 @@ function StreamingFinder() {
     setLoading(true);
     try {
       if (selectedServices.length > 0) {
-        // Provider-centric mode
-        const allProviderContent = [];
-        for (const serviceId of selectedServices) {
-          const service = STREAMING_SERVICES.find(s => s.id === serviceId);
-          if (service) {
-            const content = await fetchProviderContent(service.providerId);
-            allProviderContent.push(...content);
+        // Provider mode: Load from discover endpoint with pagination
+        const providerIds = selectedServices.map(id => 
+          STREAMING_SERVICES.find(s => s.id === id)?.providerId
+        ).filter(Boolean);
+        
+        const allContent = [];
+        for (const providerId of providerIds) {
+          try {
+            const tvRes = await fetch(
+              `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=${page}`
+            );
+            const movieRes = await fetch(
+              `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_watch_providers=${providerId}&watch_region=AU&sort_by=popularity.desc&page=${page}`
+            );
+
+            const tvData = await tvRes.json();
+            const movieData = await movieRes.json();
+
+            const providerName = STREAMING_SERVICES.find(s => s.providerId === providerId)?.apiName || 'Unknown';
+            
+            const tvShows = tvData.results.map(item => ({ 
+              ...item, 
+              media_type: 'tv',
+              streaming: [{ name: providerName, logo: '' }]
+            }));
+            const movies = movieData.results.map(item => ({ 
+              ...item, 
+              media_type: 'movie',
+              streaming: [{ name: providerName, logo: '' }]
+            }));
+
+            allContent.push(...tvShows, ...movies);
+          } catch (error) {
+            console.error(`Failed to fetch provider ${providerId}:`, error);
           }
         }
-        const withStreaming = await fetchWithStreaming(allProviderContent);
+        
+        const withLogos = await fetchWithStreaming(allContent);
+        const deduplicated = deduplicateById(withLogos);
+        
         if (page === 1) {
-          setBrowseAll(withStreaming);
+          setBrowseAll(deduplicated);
         } else {
-          setBrowseAll(prev => [...prev, ...withStreaming]);
+          setBrowseAll(prev => deduplicateById([...prev, ...deduplicated]));
         }
       } else {
-        // Global view
-        const movies = await fetchGlobalContent(
-          `discover/movie?api_key=${TMDB_API_KEY}&sort_by=popularity.desc`,
-          3
+        // Global view: Browse ALL content by popularity
+        const movieRes = await fetch(
+          `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&sort_by=popularity.desc&page=${page}`
         );
-        const tv = await fetchGlobalContent(
-          `discover/tv?api_key=${TMDB_API_KEY}&sort_by=popularity.desc`,
-          3
+        const tvRes = await fetch(
+          `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&sort_by=popularity.desc&page=${page}`
         );
+
+        const movieData = await movieRes.json();
+        const tvData = await tvRes.json();
 
         const combined = [
-          ...movies.map(m => ({ ...m, media_type: 'movie' })),
-          ...tv.map(t => ({ ...t, media_type: 'tv' }))
+          ...movieData.results.map(m => ({ ...m, media_type: 'movie' })),
+          ...tvData.results.map(t => ({ ...t, media_type: 'tv' }))
         ];
 
-        const withStreaming = await fetchWithStreaming(combined.slice(0, 40));
+        const withStreaming = await fetchWithStreaming(combined);
+        const deduplicated = deduplicateById(withStreaming);
+        
         if (page === 1) {
-          setBrowseAll(withStreaming);
+          setBrowseAll(deduplicated);
         } else {
-          setBrowseAll(prev => [...prev, ...withStreaming]);
+          setBrowseAll(prev => deduplicateById([...prev, ...deduplicated]));
         }
       }
     } catch (error) {
@@ -278,19 +372,23 @@ function StreamingFinder() {
     loadBrowseAll();
   }, []);
 
-  // Reload content when providers change
+  // Reload ALL content when providers change (not just active tab)
   useEffect(() => {
-    if (activeTab === 'trending') loadTrendingContent();
-    else if (activeTab === 'new') loadNewReleases();
-    else if (activeTab === 'browse') loadBrowseAll(1);
+    setBrowseAllPage(1);
+    loadTrendingContent();
+    loadNewReleases();
+    loadBrowseAll(1);
   }, [selectedServices]);
 
   const searchContent = async (query) => {
     if (!query.trim()) {
       setResults([]);
+      setActiveTab('trending'); // Reset to trending when search is cleared
       return;
     }
 
+    // Deselect tabs when searching
+    setActiveTab('');
     setLoading(true);
     try {
       const response = await fetch(
@@ -304,7 +402,7 @@ function StreamingFinder() {
           .slice(0, 20)
       );
       
-      setResults(resultsWithStreaming);
+      setResults(deduplicateById(resultsWithStreaming));
     } catch (error) {
       console.error('Search failed:', error);
     }
@@ -313,13 +411,11 @@ function StreamingFinder() {
 
   const loadSimilarContent = async (item) => {
     try {
-      // Try recommendations API first (better quality, based on user behavior)
       let response = await fetch(
         `https://api.themoviedb.org/3/${item.media_type}/${item.id}/recommendations?api_key=${TMDB_API_KEY}&page=1`
       );
       let data = await response.json();
       
-      // If no recommendations, fall back to similar API
       if (!data.results || data.results.length === 0) {
         response = await fetch(
           `https://api.themoviedb.org/3/${item.media_type}/${item.id}/similar?api_key=${TMDB_API_KEY}&page=1`
@@ -330,7 +426,7 @@ function StreamingFinder() {
       const withStreaming = await fetchWithStreaming(
         data.results.slice(0, 12).map(r => ({ ...r, media_type: item.media_type }))
       );
-      setSimilarContent(withStreaming);
+      setSimilarContent(deduplicateById(withStreaming));
     } catch (error) {
       console.error('Failed to load similar content:', error);
       setSimilarContent([]);
@@ -339,7 +435,20 @@ function StreamingFinder() {
 
   const handleItemClick = async (item) => {
     setSelectedItem(item);
-    await loadSimilarContent(item);
+    
+    // Fetch external IDs (IMDb, etc.) and similar content in parallel
+    const detailsPromise = fetch(
+      `https://api.themoviedb.org/3/${item.media_type}/${item.id}/external_ids?api_key=${TMDB_API_KEY}`
+    ).then(res => res.json()).catch(() => ({}));
+    
+    const similarPromise = loadSimilarContent(item);
+    
+    const [externalIds] = await Promise.all([detailsPromise, similarPromise]);
+    
+    // Add IMDb ID to the selected item
+    if (externalIds.imdb_id) {
+      setSelectedItem(prev => ({ ...prev, imdb_id: externalIds.imdb_id }));
+    }
   };
 
   useEffect(() => {
@@ -368,19 +477,16 @@ function StreamingFinder() {
   const filterContent = (content) => {
     let filtered = content;
 
-    // Apply genre filter first
     if (selectedGenres.length > 0) {
       filtered = filtered.filter(item =>
         item.genre_ids && item.genre_ids.some(gid => selectedGenres.includes(gid))
       );
     }
 
-    // Apply content type filter
     if (selectedContentType !== 'all') {
       filtered = filtered.filter(item => item.media_type === selectedContentType);
     }
 
-    // Provider filtering for search results only (provider-centric mode handles this during fetch)
     if (searchQuery && selectedServices.length > 0) {
       filtered = filtered.filter(item =>
         item.streaming.some(s =>
@@ -393,7 +499,7 @@ function StreamingFinder() {
       );
     }
 
-    return filtered;
+    return deduplicateById(filtered);
   };
 
   const displayContent = searchQuery 
@@ -444,7 +550,7 @@ function StreamingFinder() {
                   React.createElement('div', { className: 'flex flex-wrap gap-2' },
                     selectedItem.streaming.map((service, idx) =>
                       React.createElement('div', { key: idx, className: 'flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg' },
-                        React.createElement('img', { src: service.logo, alt: service.name, className: 'w-6 h-6 rounded' }),
+                        service.logo && React.createElement('img', { src: service.logo, alt: service.name, className: 'w-6 h-6 rounded' }),
                         React.createElement('span', { className: 'text-sm text-white' }, service.name)
                       )
                     )
@@ -455,6 +561,20 @@ function StreamingFinder() {
                   React.createElement('p', { className: 'text-gray-300 leading-relaxed' },
                     selectedItem.overview || 'No overview available.'
                   )
+                ),
+                React.createElement('div', { className: 'flex gap-4' },
+                  selectedItem.imdb_id && React.createElement('a', {
+                    href: `https://www.imdb.com/title/${selectedItem.imdb_id}`,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    className: 'px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-white font-medium transition-colors'
+                  }, 'View on IMDb'),
+                  React.createElement('a', {
+                    href: `https://www.rottentomatoes.com/search?search=${encodeURIComponent(selectedItem.title || selectedItem.name)}`,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    className: 'px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors'
+                  }, 'Search Rotten Tomatoes')
                 )
               )
             ),
@@ -488,7 +608,7 @@ function StreamingFinder() {
                         React.createElement('p', { className: 'text-xs text-gray-400 mb-2' }, 'Available on:'),
                         React.createElement('div', { className: 'flex flex-wrap gap-1' },
                           similar.streaming.slice(0, 3).map((service, idx) =>
-                            React.createElement('img', { key: idx, src: service.logo, alt: service.name, title: service.name, className: 'w-8 h-8 rounded object-cover' })
+                            service.logo && React.createElement('img', { key: idx, src: service.logo, alt: service.name, title: service.name, className: 'w-8 h-8 rounded object-cover' })
                           ),
                           similar.streaming.length > 3 && React.createElement('span', { className: 'text-xs text-gray-400 self-center' }, `+${similar.streaming.length - 3}`)
                         )
@@ -672,7 +792,7 @@ function StreamingFinder() {
                   React.createElement('p', { className: 'text-xs text-gray-400 mb-2' }, 'Available on:'),
                   React.createElement('div', { className: 'flex flex-wrap gap-1' },
                     item.streaming.slice(0, 3).map((service, idx) =>
-                      React.createElement('img', { key: idx, src: service.logo, alt: service.name, title: service.name, className: 'w-8 h-8 rounded object-cover' })
+                      service.logo && React.createElement('img', { key: idx, src: service.logo, alt: service.name, title: service.name, className: 'w-8 h-8 rounded object-cover' })
                     ),
                     item.streaming.length > 3 && React.createElement('span', { className: 'text-xs text-gray-400 self-center' }, `+${item.streaming.length - 3}`)
                   )
@@ -681,7 +801,7 @@ function StreamingFinder() {
             )
           )
         ),
-        activeTab === 'browse' && !searchQuery && React.createElement('div', { className: 'text-center mt-8' },
+        activeTab === 'browse' && !searchQuery && !loading && React.createElement('div', { className: 'text-center mt-8' },
           React.createElement('button', {
             onClick: () => {
               const nextPage = browseAllPage + 1;
