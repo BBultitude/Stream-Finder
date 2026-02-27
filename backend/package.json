@@ -1,0 +1,14 @@
+{
+  "name": "stream-finder-backend",
+  "version": "1.0.0",
+  "description": "Stream Finder Node.js backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "express": "^4.18.3",
+    "node-cron": "^3.0.3"
+  }
+}

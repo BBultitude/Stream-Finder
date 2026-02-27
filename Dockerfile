@@ -1,12 +1,34 @@
-FROM nginx:alpine
+# IMP-03: Node.js + Express backend alongside Nginx inside a single container.
+# supervisord manages both processes. SQLite data mounted at /data (Docker volume).
+FROM node:20-alpine
 
-# Copy the app files
+# Install nginx, supervisor, and build tools required by better-sqlite3
+RUN apk add --no-cache nginx supervisor python3 make g++
+
+# ── Backend: install dependencies ────────────────────────────────────────────
+WORKDIR /app/backend
+COPY backend/package.json .
+RUN npm install --production
+
+# Remove build tools after native compilation to keep image lean
+RUN apk del python3 make g++
+
+# Copy remaining backend source
+COPY backend/ .
+
+# ── Frontend: static files served by Nginx ───────────────────────────────────
+RUN mkdir -p /usr/share/nginx/html
 COPY index.html /usr/share/nginx/html/
-COPY app.js /usr/share/nginx/html/
+COPY app.js     /usr/share/nginx/html/
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# ── Config ────────────────────────────────────────────────────────────────────
+COPY nginx.conf      /etc/nginx/http.d/default.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# ── Data directory ────────────────────────────────────────────────────────────
+# In production, mount a Docker volume here: -v /host/path:/data
+RUN mkdir -p /data
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

@@ -1,0 +1,57 @@
+# Version control
+.git
+.gitignore
+
+# Environment files — never in the image
+.env
+.env.*
+
+# Node modules — rebuilt inside Docker
+backend/node_modules
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+*~
+Thumbs.db
+
+# Design and documentation (not needed at runtime)
+Design-v*.md
+Improvements.md
+Handoff.md
+CLAUDE.md
+CHANGELOG.md
+DEPLOYMENT.md
+QUICK_REFERENCE.md
+README.md
+LICENSE
+
+# Database files — mounted as Docker volume at /data
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test files
+*.test.js
+*.spec.js
+__tests__/
+
+# Claude project settings
+.claude/
