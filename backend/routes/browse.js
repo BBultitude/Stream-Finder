@@ -40,7 +40,7 @@ router.get('/', (req, res) => {
           AND sa.content_media_type = c.media_type
           AND sa.region = 'AU'
           AND sa.provider_id IN (${ph})
-        WHERE c.display_status != 'unavailable'
+        WHERE c.display_status NOT IN ('unavailable', 'coming_soon')
         ${typeClause}
         ORDER BY c.popularity DESC
         LIMIT ? OFFSET ?
@@ -50,7 +50,7 @@ router.get('/', (req, res) => {
         SELECT id, media_type, title, overview, poster_path,
           release_date, vote_average, popularity, display_status
         FROM content
-        WHERE display_status != 'unavailable'
+        WHERE display_status NOT IN ('unavailable', 'coming_soon')
         ${typeClause}
         ORDER BY popularity DESC
         LIMIT ? OFFSET ?

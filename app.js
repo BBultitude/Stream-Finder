@@ -336,6 +336,25 @@ function StreamingFinder() {
                     )
                   )
                 ),
+                (selectedItem.display_status === 'in_cinemas' || selectedItem.display_status === 'coming_soon') && React.createElement('div', {
+                  className: `mb-6 px-4 py-3 rounded-lg border flex items-start gap-2 ${
+                    selectedItem.display_status === 'in_cinemas'
+                      ? 'bg-amber-950/50 border-amber-700/50 text-amber-300'
+                      : 'bg-blue-950/50 border-blue-700/50 text-blue-300'
+                  }`
+                },
+                  React.createElement(Film, { className: 'w-4 h-4 mt-0.5 flex-shrink-0' }),
+                  React.createElement('p', { className: 'text-sm' },
+                    selectedItem.display_status === 'in_cinemas'
+                      ? 'Currently showing in Australian cinemas \u2014 not yet available to stream.'
+                      : (() => {
+                          const d = selectedItem.release_date || selectedItem.first_air_date;
+                          return d
+                            ? `Not yet released. Expected ${new Date(d).toLocaleDateString('en-AU', { year: 'numeric', month: 'long' })}.`
+                            : 'Not yet released.';
+                        })()
+                  )
+                ),
                 React.createElement('div', { className: 'mb-6' },
                   React.createElement('h3', { className: 'text-xl font-semibold mb-2 text-white' }, 'Overview'),
                   React.createElement('p', { className: 'text-gray-300 leading-relaxed' },
@@ -566,6 +585,10 @@ function StreamingFinder() {
                   ),
                   item.vote_average > 0 && React.createElement('span', { className: 'text-xs text-yellow-400' },
                     `★ ${item.vote_average.toFixed(1)}`
+                  ),
+                  item.display_status === 'in_cinemas' && React.createElement('span', { className: 'text-xs px-2 py-1 bg-amber-700 rounded text-amber-100 flex items-center gap-1' },
+                    React.createElement(Film, { className: 'w-3 h-3' }),
+                    'In Cinemas'
                   )
                 ),
                 item.streaming && item.streaming.length > 0 ? React.createElement('div', null,
@@ -576,7 +599,7 @@ function StreamingFinder() {
                     ),
                     item.streaming.length > 3 && React.createElement('span', { className: 'text-xs text-gray-400 self-center' }, `+${item.streaming.length - 3}`)
                   )
-                ) : React.createElement('p', { className: 'text-xs text-gray-500 italic' }, 'No streaming info')
+                ) : item.display_status !== 'in_cinemas' && React.createElement('p', { className: 'text-xs text-gray-500 italic' }, 'No streaming info')
               )
             )
           )

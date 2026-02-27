@@ -39,8 +39,7 @@ router.get('/', (req, res) => {
           AND sa.region = 'AU'
           AND sa.provider_id IN (${ph})
         WHERE c.release_date >= ?
-          AND c.display_status != 'unavailable'
-          AND c.display_status != 'coming_soon'
+          AND c.display_status = 'streaming'
           ${typeClause}
         ORDER BY c.release_date DESC
         LIMIT 100
@@ -51,8 +50,7 @@ router.get('/', (req, res) => {
           release_date, vote_average, popularity, display_status
         FROM content
         WHERE release_date >= ?
-          AND display_status != 'unavailable'
-          AND display_status != 'coming_soon'
+          AND display_status = 'streaming'
           ${typeClause}
         ORDER BY release_date DESC
         LIMIT 100
