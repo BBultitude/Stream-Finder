@@ -92,6 +92,7 @@ function StreamingFinder() {
   const [showGenreFilters, setShowGenreFilters] = useState(false);
   const [activeTab, setActiveTab] = useState('trending');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [top10Content, setTop10Content] = useState([]);
   const [similarContent, setSimilarContent] = useState([]);
   const [browseAllPage, setBrowseAllPage] = useState(1);
 
@@ -113,6 +114,23 @@ function StreamingFinder() {
       .map(id => STREAMING_SERVICES.find(s => s.id === id)?.providerId)
       .filter(Boolean);
     return ids.length ? ids.join(',') : undefined;
+  };
+
+  const loadTop10 = async () => {
+    try {
+      const qs = buildQuery({ type: selectedContentType !== 'all' ? selectedContentType : undefined });
+      const cacheKey = '/api/top10' + qs;
+      const cached = cache.get(cacheKey);
+      if (cached) { setTop10Content(cached); return; }
+      const res = await fetch('/api/top10' + qs);
+      const data = await res.json();
+      const results = data.results || [];
+      cache.set(cacheKey, results);
+      setTop10Content(results);
+    } catch (error) {
+      console.error('Failed to load Top 10:', error);
+      setTop10Content([]);
+    }
   };
 
   const loadTrendingContent = async () => {
@@ -190,6 +208,7 @@ function StreamingFinder() {
   };
 
   useEffect(() => {
+    loadTop10();
     loadTrendingContent();
     loadNewReleases();
     loadBrowseAll();
@@ -198,6 +217,7 @@ function StreamingFinder() {
   // Reload all content when service or content-type filters change
   useEffect(() => {
     setBrowseAllPage(1);
+    loadTop10();
     loadTrendingContent();
     loadNewReleases();
     loadBrowseAll(1);
@@ -282,12 +302,14 @@ function StreamingFinder() {
     return deduplicateById(filtered);
   };
 
-  const displayContent = searchQuery 
+  const displayContent = searchQuery
     ? filterContent(results)
     : activeTab === 'trending'
       ? filterContent(trendingContent)
       : activeTab === 'new'
       ? filterContent(newReleases)
+      : activeTab === 'top10'
+      ? filterContent(top10Content)
       : filterContent(browseAll);
 
   if (selectedItem) {
@@ -551,12 +573,56 @@ function StreamingFinder() {
         },
           React.createElement(Grid, { className: 'w-5 h-5' }),
           'Browse All'
+        ),
+        React.createElement('button', {
+          onClick: () => setActiveTab('top10'),
+          className: `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'top10'
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+              : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+          }`
+        },
+          React.createElement(TrendingUp, { className: 'w-5 h-5' }),
+          'Top 10'
         )
       ),
       loading && React.createElement('div', { className: 'text-center py-12' },
         React.createElement('div', { className: 'inline-block w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin' })
       ),
-      !loading && displayContent.length > 0 && React.createElement(React.Fragment, null,
+      !loading && activeTab === 'top10' && !searchQuery && React.createElement(React.Fragment, null,
+        React.createElement('h2', { className: 'text-2xl font-bold mb-6 text-white' }, '🏆 Top 10 in Australia'),
+        displayContent.length === 0
+          ? React.createElement('p', { className: 'text-center py-12 text-gray-400' }, 'No streaming titles available yet — check back after the first data refresh.')
+          : React.createElement('div', { className: 'space-y-3 max-w-3xl mx-auto' },
+              displayContent.map((item, idx) =>
+                React.createElement('div', {
+                  key: item.id,
+                  onClick: () => handleItemClick(item),
+                  className: 'flex items-center gap-4 bg-gray-800 rounded-xl p-3 hover:bg-gray-750 border border-gray-700 hover:border-purple-500 cursor-pointer transition-all'
+                },
+                  React.createElement('span', { className: 'text-4xl font-black w-12 text-center flex-shrink-0 text-gray-600 select-none' }, idx + 1),
+                  item.poster_path
+                    ? React.createElement('img', { src: `https://image.tmdb.org/t/p/w92${item.poster_path}`, alt: item.title || item.name, className: 'w-12 h-16 object-cover rounded flex-shrink-0' })
+                    : React.createElement('div', { className: 'w-12 h-16 bg-gray-700 rounded flex items-center justify-center flex-shrink-0' },
+                        React.createElement(Film, { className: 'w-6 h-6 text-gray-500' })
+                      ),
+                  React.createElement('div', { className: 'flex-1 min-w-0' },
+                    React.createElement('h3', { className: 'font-semibold text-white truncate' }, item.title || item.name),
+                    React.createElement('div', { className: 'flex items-center gap-2 mt-1 flex-wrap' },
+                      React.createElement('span', { className: 'text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300' }, item.media_type === 'movie' ? 'Movie' : 'TV Show'),
+                      item.vote_average > 0 && React.createElement('span', { className: 'text-xs text-yellow-400' }, `★ ${item.vote_average.toFixed(1)}`)
+                    )
+                  ),
+                  item.streaming && item.streaming.length > 0 && React.createElement('div', { className: 'flex gap-1 flex-shrink-0' },
+                    item.streaming.slice(0, 3).map((s, i) =>
+                      s.logo && React.createElement('img', { key: i, src: s.logo, alt: s.name, title: s.name, className: 'w-7 h-7 rounded object-cover' })
+                    )
+                  )
+                )
+              )
+            )
+      ),
+      !loading && displayContent.length > 0 && activeTab !== 'top10' && React.createElement(React.Fragment, null,
         searchQuery && React.createElement('h2', { className: 'text-2xl font-bold mb-6 text-white' }, 'Search Results'),
         !searchQuery && React.createElement('h2', { className: 'text-2xl font-bold mb-6 text-white' },
           activeTab === 'trending' ? "🔥 What's Hot This Week" :

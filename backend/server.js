@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use('/api/trending',  require('./routes/trending'));
 app.use('/api/new',       require('./routes/new'));
+app.use('/api/top10',     require('./routes/top10'));
 app.use('/api/browse',    require('./routes/browse'));
 app.use('/api/search',    require('./routes/search'));
 app.use('/api/detail',    require('./routes/detail'));
