@@ -26,7 +26,8 @@ router.get('/', (req, res) => {
 
     const rows = db.prepare(`
       SELECT id, media_type, title, overview, poster_path,
-        release_date, vote_average, popularity, display_status
+        release_date, vote_average, popularity, display_status,
+        runtime, number_of_seasons, number_of_episodes, certification
       FROM content
       WHERE display_status = 'streaming'
       ${typeClause}

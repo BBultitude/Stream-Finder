@@ -30,6 +30,10 @@ function initSchema() {
       popularity REAL DEFAULT 0,
       display_status TEXT DEFAULT 'coming_soon',
       last_updated INTEGER NOT NULL,
+      runtime INTEGER,
+      number_of_seasons INTEGER,
+      number_of_episodes INTEGER,
+      certification TEXT,
       PRIMARY KEY (id, media_type)
     );
 
@@ -79,6 +83,16 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_streaming_provider
       ON streaming_availability(provider_id, region);
   `);
+
+  // Additive column migrations — safe to run every startup
+  for (const col of [
+    'ALTER TABLE content ADD COLUMN runtime INTEGER',
+    'ALTER TABLE content ADD COLUMN number_of_seasons INTEGER',
+    'ALTER TABLE content ADD COLUMN number_of_episodes INTEGER',
+    'ALTER TABLE content ADD COLUMN certification TEXT',
+  ]) {
+    try { db.exec(col); } catch (_) { /* column already exists */ }
+  }
 }
 
 module.exports = { getDb };

@@ -1,3 +1,14 @@
+# ─── Stage 1: Build frontend ──────────────────────────────────────────────────
+# Vite + React + Tailwind — build tools stay in this stage only
+FROM node:20-alpine AS frontend-builder
+WORKDIR /build
+COPY package.json ./
+RUN npm install
+COPY index.html vite.config.js tailwind.config.js postcss.config.js ./
+COPY src/ ./src/
+RUN npm run build
+
+# ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 # IMP-03: Node.js + Express backend alongside Nginx inside a single container.
 # supervisord manages both processes. SQLite data mounted at /data (Docker volume).
 FROM node:20-alpine
@@ -16,10 +27,9 @@ RUN apk del python3 make g++
 # Copy remaining backend source
 COPY backend/ .
 
-# ── Frontend: static files served by Nginx ───────────────────────────────────
+# ── Frontend: serve built assets from Vite ────────────────────────────────────
 RUN mkdir -p /usr/share/nginx/html
-COPY index.html /usr/share/nginx/html/
-COPY app.js     /usr/share/nginx/html/
+COPY --from=frontend-builder /build/dist/ /usr/share/nginx/html/
 
 # ── Config ────────────────────────────────────────────────────────────────────
 COPY nginx.conf      /etc/nginx/http.d/default.conf

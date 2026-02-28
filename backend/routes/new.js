@@ -31,7 +31,8 @@ router.get('/', (req, res) => {
       const ph = providerIds.map(() => '?').join(',');
       rows = db.prepare(`
         SELECT DISTINCT c.id, c.media_type, c.title, c.overview, c.poster_path,
-          c.release_date, c.vote_average, c.popularity, c.display_status
+          c.release_date, c.vote_average, c.popularity, c.display_status,
+          c.runtime, c.number_of_seasons, c.number_of_episodes, c.certification
         FROM content c
         INNER JOIN streaming_availability sa
           ON sa.content_id = c.id
@@ -47,7 +48,8 @@ router.get('/', (req, res) => {
     } else {
       rows = db.prepare(`
         SELECT id, media_type, title, overview, poster_path,
-          release_date, vote_average, popularity, display_status
+          release_date, vote_average, popularity, display_status,
+          runtime, number_of_seasons, number_of_episodes, certification
         FROM content
         WHERE release_date >= ?
           AND display_status = 'streaming'

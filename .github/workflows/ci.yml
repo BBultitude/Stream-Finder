@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Lint & Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Build Docker image
+        run: docker build -t stream-finder:ci .
+
+      - name: Smoke-test container
+        run: |
+          docker run -d --name sf-ci -p 8080:80 \
+            -e TMDB_API_KEY=dummy_key_for_build_test \
+            stream-finder:ci
+          # Give supervisord + Node a moment to start
+          sleep 5
+          # Static files should serve without an API key
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || (docker logs sf-ci && exit 1)
+          docker rm -f sf-ci

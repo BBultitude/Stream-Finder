@@ -26,6 +26,14 @@ function buildQuery(params) {
   return parts.length ? '?' + parts.join('&') : '';
 }
 
+// Format movie runtime in minutes to "Xh Ym" display string
+function formatRuntime(minutes) {
+  if (!minutes) return null;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+}
+
 // Create icon components
 const Search = (props) => React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', width: '24', height: '24', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round', className: props.className }, React.createElement('circle', { cx: '11', cy: '11', r: '8' }), React.createElement('path', { d: 'm21 21-4.3-4.3' }));
 
@@ -249,8 +257,8 @@ function StreamingFinder() {
     try {
       const res = await fetch(`/api/detail/${item.media_type}/${item.id}`);
       const data = await res.json();
-      if (data.imdb_id) {
-        setSelectedItem(prev => ({ ...prev, imdb_id: data.imdb_id }));
+      if (data.imdb_id || data.trailer_key !== undefined) {
+        setSelectedItem(prev => ({ ...prev, imdb_id: data.imdb_id || prev.imdb_id, trailer_key: data.trailer_key || null }));
       }
       if (data.recommendations) {
         setSimilarContent(deduplicateById(data.recommendations));
@@ -345,7 +353,14 @@ function StreamingFinder() {
                   ),
                   (selectedItem.release_date || selectedItem.first_air_date) && React.createElement('span', { className: 'px-3 py-1 bg-gray-700 rounded-full text-sm text-white' },
                     new Date(selectedItem.release_date || selectedItem.first_air_date).getFullYear()
-                  )
+                  ),
+                  selectedItem.runtime && React.createElement('span', { className: 'px-3 py-1 bg-gray-700 rounded-full text-sm text-white' }, formatRuntime(selectedItem.runtime)),
+                  selectedItem.number_of_seasons && React.createElement('span', { className: 'px-3 py-1 bg-gray-700 rounded-full text-sm text-white' },
+                    selectedItem.number_of_episodes
+                      ? `${selectedItem.number_of_seasons} Season${selectedItem.number_of_seasons !== 1 ? 's' : ''} · ${selectedItem.number_of_episodes} Eps`
+                      : `${selectedItem.number_of_seasons} Season${selectedItem.number_of_seasons !== 1 ? 's' : ''}`
+                  ),
+                  selectedItem.certification && React.createElement('span', { className: 'px-3 py-1 bg-gray-700 border border-gray-500 rounded-full text-sm text-white' }, selectedItem.certification)
                 ),
                 selectedItem.streaming && selectedItem.streaming.length > 0 && React.createElement('div', { className: 'mb-6' },
                   React.createElement('h3', { className: 'text-sm text-gray-300 mb-2' }, 'Available on:'),
@@ -383,7 +398,18 @@ function StreamingFinder() {
                     selectedItem.overview || 'No overview available.'
                   )
                 ),
-                React.createElement('div', { className: 'flex gap-4' },
+                React.createElement('div', { className: 'flex flex-wrap gap-4' },
+                  selectedItem.trailer_key && React.createElement('a', {
+                    href: `https://www.youtube.com/watch?v=${selectedItem.trailer_key}`,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    className: 'px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors flex items-center gap-2'
+                  },
+                    React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', width: '16', height: '16', viewBox: '0 0 24 24', fill: 'currentColor', className: 'flex-shrink-0' },
+                      React.createElement('path', { d: 'M8 5v14l11-7z' })
+                    ),
+                    'Watch Trailer'
+                  ),
                   selectedItem.imdb_id && React.createElement('a', {
                     href: `https://www.imdb.com/title/${selectedItem.imdb_id}`,
                     target: '_blank',
@@ -652,6 +678,9 @@ function StreamingFinder() {
                   item.vote_average > 0 && React.createElement('span', { className: 'text-xs text-yellow-400' },
                     `★ ${item.vote_average.toFixed(1)}`
                   ),
+                  item.runtime && React.createElement('span', { className: 'text-xs text-gray-400' }, formatRuntime(item.runtime)),
+                  item.number_of_seasons && React.createElement('span', { className: 'text-xs text-gray-400' }, `${item.number_of_seasons} Season${item.number_of_seasons !== 1 ? 's' : ''}`),
+                  item.certification && React.createElement('span', { className: 'text-xs px-1.5 py-0.5 border border-gray-500 rounded text-gray-300' }, item.certification),
                   item.display_status === 'in_cinemas' && React.createElement('span', { className: 'text-xs px-2 py-1 bg-amber-700 rounded text-amber-100 flex items-center gap-1' },
                     React.createElement(Film, { className: 'w-3 h-3' }),
                     'In Cinemas'

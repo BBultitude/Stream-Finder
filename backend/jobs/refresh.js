@@ -21,12 +21,44 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Tracks when a 429 response allows us to resume — shared across concurrent batch items
+let rateLimitedUntil = 0;
+
+/**
+ * Fetch from TMDB with automatic rate-limit handling.
+ * On HTTP 429, reads the Retry-After header, waits the required duration,
+ * and retries up to 3 times before throwing. All concurrent batch requests
+ * check rateLimitedUntil before proceeding so they don't pile in during backoff.
+ */
 async function tmdbGet(path) {
   const sep = path.includes('?') ? '&' : '?';
   const url = `${TMDB_BASE}${path}${sep}api_key=${getApiKey()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`TMDB ${path} returned HTTP ${res.status}`);
-  return res.json();
+  const shortPath = path.split('?')[0];
+
+  for (let attempt = 0; attempt <= 3; attempt++) {
+    // Respect any active rate-limit window before firing the next request
+    const now = Date.now();
+    if (rateLimitedUntil > now) {
+      await sleep(rateLimitedUntil - now);
+    }
+
+    const res = await fetch(url);
+
+    if (res.ok) return res.json();
+
+    if (res.status === 429) {
+      const retryAfterSec = parseInt(res.headers.get('Retry-After') || '10', 10);
+      const waitMs = (retryAfterSec + 2) * 1000; // +2s buffer
+      rateLimitedUntil = Date.now() + waitMs;
+      console.warn(`[refresh] TMDB 429 on ${shortPath} — backing off ${retryAfterSec + 2}s (attempt ${attempt + 1}/4)`);
+      if (attempt < 3) {
+        await sleep(waitMs);
+        continue;
+      }
+    }
+
+    throw new Error(`TMDB ${shortPath} returned HTTP ${res.status}`);
+  }
 }
 
 // ─── DB helpers ──────────────────────────────────────────────────────────────
@@ -74,16 +106,48 @@ function upsertGenres(db, item) {
 }
 
 /**
- * Fetch AU streaming availability for one content item from TMDB and store it.
+ * Fetch full detail for one content item from TMDB using append_to_response,
+ * combining watch/providers + release_dates (movie) or content_ratings (TV)
+ * into a single API call. Stores runtime, seasons, episodes, AU certification,
+ * and streaming availability.
+ *
  * Returns true if at least one flatrate AU provider was found.
  *
  * Critical: `first_seen` is set only on INSERT — never updated. This preserves
  * the first-seen timestamp required for IMP-06 (New on Platform badges).
  */
-async function fetchAndStoreStreaming(db, contentId, mediaType, now) {
+async function fetchAndStoreDetail(db, contentId, mediaType, now) {
   try {
-    const data = await tmdbGet(`/${mediaType}/${contentId}/watch/providers?region=${REGION}`);
-    const auData = data.results?.[REGION] || {};
+    const appendKeys = mediaType === 'movie'
+      ? 'watch%2Fproviders,release_dates'
+      : 'watch%2Fproviders,content_ratings';
+    const data = await tmdbGet(`/${mediaType}/${contentId}?append_to_response=${appendKeys}`);
+
+    // AU streaming providers (previously from /watch/providers?region=AU)
+    const auData = data['watch/providers']?.results?.[REGION] || {};
+
+    // Runtime (movies) / seasons + episodes (TV)
+    const runtime         = mediaType === 'movie' ? (data.runtime || null) : null;
+    const numberOfSeasons = mediaType === 'tv'    ? (data.number_of_seasons || null) : null;
+    const numberOfEpisodes = mediaType === 'tv'   ? (data.number_of_episodes || null) : null;
+
+    // AU age certification
+    let certification = null;
+    if (mediaType === 'movie') {
+      const auEntry = (data.release_dates?.results || []).find(r => r.iso_3166_1 === 'AU');
+      if (auEntry) {
+        certification = auEntry.release_dates.find(rd => rd.certification)?.certification || null;
+      }
+    } else {
+      const auEntry = (data.content_ratings?.results || []).find(r => r.iso_3166_1 === 'AU');
+      certification = auEntry?.rating || null;
+    }
+
+    db.prepare(`
+      UPDATE content
+      SET runtime = ?, number_of_seasons = ?, number_of_episodes = ?, certification = ?
+      WHERE id = ? AND media_type = ?
+    `).run(runtime, numberOfSeasons, numberOfEpisodes, certification, contentId, mediaType);
 
     const upsertProvider = db.prepare(`
       INSERT INTO providers (provider_id, provider_name, logo_path)
@@ -112,7 +176,7 @@ async function fetchAndStoreStreaming(db, contentId, mediaType, now) {
     }
     return hasAuFlatrate;
   } catch (err) {
-    console.error(`[refresh] Streaming fetch failed for ${mediaType}/${contentId}: ${err.message}`);
+    console.error(`[refresh] Detail fetch failed for ${mediaType}/${contentId}: ${err.message}`);
     return false;
   }
 }
@@ -149,7 +213,7 @@ async function refreshContentList(db, items) {
       if (!item.media_type || !['movie', 'tv'].includes(item.media_type)) return;
       upsertContent(db, item, now);
       upsertGenres(db, item);
-      const hasStreaming = await fetchAndStoreStreaming(db, item.id, item.media_type, now);
+      const hasStreaming = await fetchAndStoreDetail(db, item.id, item.media_type, now);
       setDisplayStatus(db, item.id, item.media_type, hasStreaming, item.release_date || item.first_air_date);
       count++;
     }));
@@ -218,13 +282,17 @@ async function refreshStreamingAvailability() {
   console.log('[refresh] streaming_availability: starting');
   try {
     const now = Date.now();
-    const allContent = db.prepare('SELECT id, media_type, release_date FROM content').all();
+    // Process oldest items first — if the job is interrupted mid-run, the next
+    // run will naturally resume from the most stale items
+    const allContent = db.prepare(
+      'SELECT id, media_type, release_date FROM content ORDER BY last_updated ASC'
+    ).all();
     let count = 0;
 
     for (let i = 0; i < allContent.length; i += BATCH_SIZE) {
       const batch = allContent.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map(async item => {
-        const hasStreaming = await fetchAndStoreStreaming(db, item.id, item.media_type, now);
+        const hasStreaming = await fetchAndStoreDetail(db, item.id, item.media_type, now);
         setDisplayStatus(db, item.id, item.media_type, hasStreaming, item.release_date);
         count++;
       }));
@@ -252,6 +320,7 @@ async function runInitialRefreshIfNeeded() {
     console.log('[refresh] Empty database — running initial populate (async)...');
     refreshTrending()
       .then(() => refreshNewReleases())
+      .then(() => refreshStreamingAvailability())
       .catch(err => console.error('[refresh] Initial populate failed:', err.message));
   } else {
     console.log(`[refresh] Database has ${count} items — skipping initial populate`);

@@ -10,13 +10,14 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-app.use('/api/trending',  require('./routes/trending'));
-app.use('/api/new',       require('./routes/new'));
-app.use('/api/top10',     require('./routes/top10'));
-app.use('/api/browse',    require('./routes/browse'));
-app.use('/api/search',    require('./routes/search'));
-app.use('/api/detail',    require('./routes/detail'));
-app.use('/api/providers', require('./routes/providers'));
+app.use('/api/trending',     require('./routes/trending'));
+app.use('/api/new',          require('./routes/new'));
+app.use('/api/top10',        require('./routes/top10'));
+app.use('/api/browse',       require('./routes/browse'));
+app.use('/api/coming-soon',  require('./routes/coming-soon'));
+app.use('/api/search',       require('./routes/search'));
+app.use('/api/detail',       require('./routes/detail'));
+app.use('/api/providers',    require('./routes/providers'));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

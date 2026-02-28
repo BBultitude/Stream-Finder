@@ -1,0 +1,198 @@
+import { X } from './icons'
+import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS } from './FilterBar'
+
+const CONTENT_TYPES = [
+  { id: 'all',   name: 'All' },
+  { id: 'movie', name: 'Movies' },
+  { id: 'tv',    name: 'TV Shows' },
+]
+
+/**
+ * Full-screen bottom sheet for filters on mobile.
+ * Shown on top of content via a fixed overlay; dismissed by tapping the backdrop
+ * or the close button.
+ */
+export default function FilterSheet({
+  open,
+  onClose,
+  selectedServices, onServiceToggle,
+  selectedGenres, onGenreToggle,
+  selectedContentType, onContentTypeChange,
+  selectedDecade, onDecadeChange,
+  selectedMinRating, onMinRatingChange,
+  subscriptionOnly, onSubscriptionOnlyToggle,
+  onClearAll
+}) {
+  if (!open) return null
+
+  const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
+    selectedContentType !== 'all' || selectedDecade !== null ||
+    selectedMinRating > 0 || subscriptionOnly
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="md:hidden fixed inset-0 z-40 bg-black/60"
+        onClick={onClose}
+      />
+
+      {/* Sheet */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-2xl border-t border-gray-700 max-h-[85vh] overflow-y-auto pb-safe">
+        {/* Handle + header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-800">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-2" />
+          <h2 className="text-lg font-semibold text-white">Filters</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-5">
+          {/* Content type */}
+          <div>
+            <p className="text-sm font-medium text-gray-300 mb-2">Content Type</p>
+            <div className="flex flex-wrap gap-2">
+              {CONTENT_TYPES.map(type => (
+                <button
+                  key={type.id}
+                  onClick={() => onContentTypeChange(type.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedContentType === type.id
+                      ? 'bg-purple-600 text-white shadow-lg'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {type.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Streaming services */}
+          <div>
+            <p className="text-sm font-medium text-gray-300 mb-2">
+              Streaming Service
+              {selectedServices.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-purple-600 rounded text-xs text-white">{selectedServices.length}</span>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {STREAMING_SERVICES.map(service => (
+                <button
+                  key={service.id}
+                  onClick={() => onServiceToggle(service.id)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    selectedServices.includes(service.id)
+                      ? `${service.color} text-white shadow-lg scale-105`
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {service.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Genres */}
+          <div>
+            <p className="text-sm font-medium text-gray-300 mb-2">
+              Genre
+              {selectedGenres.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-purple-600 rounded text-xs text-white">{selectedGenres.length}</span>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {GENRES.map(genre => (
+                <button
+                  key={genre.id}
+                  onClick={() => onGenreToggle(genre.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    selectedGenres.includes(genre.id)
+                      ? 'bg-purple-600 text-white shadow-lg scale-105'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {genre.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Decade */}
+          <div>
+            <p className="text-sm font-medium text-gray-300 mb-2">Decade</p>
+            <div className="flex flex-wrap gap-2">
+              {DECADES.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => onDecadeChange(selectedDecade === id ? null : id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    selectedDecade === id
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Min rating */}
+          <div>
+            <p className="text-sm font-medium text-gray-300 mb-2">Min Rating</p>
+            <div className="flex flex-wrap gap-2">
+              {RATING_OPTIONS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => onMinRatingChange(id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    selectedMinRating === id
+                      ? 'bg-yellow-600 text-white shadow-lg'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Subscription only */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onSubscriptionOnlyToggle}
+              className={`relative w-10 h-5 rounded-full transition-colors ${
+                subscriptionOnly ? 'bg-green-600' : 'bg-gray-600'
+              }`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                subscriptionOnly ? 'translate-x-5' : 'translate-x-0.5'
+              }`} />
+            </button>
+            <span className="text-sm text-gray-300">Subscription streaming only</span>
+          </div>
+
+          {/* Clear + Apply */}
+          <div className="flex gap-3 pt-2">
+            {hasFilters && (
+              <button
+                onClick={() => { onClearAll(); onClose() }}
+                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium transition-colors"
+              >
+                Clear All
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}

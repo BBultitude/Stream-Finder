@@ -27,14 +27,22 @@ router.get('/', async (req, res) => {
     const apiKey = process.env.TMDB_API_KEY;
     if (!apiKey) throw new Error('TMDB_API_KEY not configured');
 
-    const url = `${TMDB_BASE}/search/multi?api_key=${apiKey}&language=en-US&query=${encodeURIComponent(query.trim())}&page=1`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`TMDB search returned HTTP ${response.status}`);
-    const data = await response.json();
+    const baseUrl = `${TMDB_BASE}/search/multi?api_key=${apiKey}&language=en-US&query=${encodeURIComponent(query.trim())}`;
+    const [page1, page2] = await Promise.all([
+      fetch(baseUrl + '&page=1').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+      fetch(baseUrl + '&page=2').then(r => r.ok ? r.json() : { results: [] }).catch(() => ({ results: [] }))
+    ]);
 
-    let items = (data.results || [])
-      .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
-      .slice(0, 20);
+    const seen = new Set();
+    let items = [...(page1.results || []), ...(page2.results || [])]
+      .filter(item => {
+        if (item.media_type !== 'movie' && item.media_type !== 'tv') return false;
+        const key = `${item.media_type}:${item.id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 50);
 
     if (items.length === 0) {
       return res.json({ results: [] });

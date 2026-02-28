@@ -47,7 +47,11 @@ function shapeItem(item, streaming, genreIds) {
     popularity: item.popularity || 0,
     display_status: item.display_status || 'coming_soon',
     genre_ids: genreIds,
-    streaming
+    streaming,
+    runtime: isMovie ? (item.runtime || null) : undefined,
+    number_of_seasons: isMovie ? undefined : (item.number_of_seasons || null),
+    number_of_episodes: isMovie ? undefined : (item.number_of_episodes || null),
+    certification: item.certification || null
   };
 }
 
