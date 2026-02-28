@@ -20,14 +20,12 @@ export default function FilterSheet({
   selectedContentType, onContentTypeChange,
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
-  subscriptionOnly, onSubscriptionOnlyToggle,
   onClearAll
 }) {
   if (!open) return null
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
-    selectedContentType !== 'all' || selectedDecade !== null ||
-    selectedMinRating > 0 || subscriptionOnly
+    selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0
 
   return (
     <>
@@ -157,21 +155,6 @@ export default function FilterSheet({
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Subscription only */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onSubscriptionOnlyToggle}
-              className={`relative w-10 h-5 rounded-full transition-colors ${
-                subscriptionOnly ? 'bg-green-600' : 'bg-gray-600'
-              }`}
-            >
-              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                subscriptionOnly ? 'translate-x-5' : 'translate-x-0.5'
-              }`} />
-            </button>
-            <span className="text-sm text-gray-300">Subscription streaming only</span>
           </div>
 
           {/* Clear + Apply */}

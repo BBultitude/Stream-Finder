@@ -182,7 +182,7 @@ async function fetchAndStoreDetail(db, contentId, mediaType, now) {
 }
 
 function setDisplayStatus(db, contentId, mediaType, hasAuStreaming, releaseDate) {
-  const status = computeDisplayStatus({ tmdbStatus: null, releaseDate, hasAuStreaming });
+  const status = computeDisplayStatus({ tmdbStatus: null, releaseDate, hasAuStreaming, mediaType });
   db.prepare(`
     UPDATE content SET display_status = ? WHERE id = ? AND media_type = ?
   `).run(status, contentId, mediaType);

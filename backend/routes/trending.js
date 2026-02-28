@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
           AND sa.content_media_type = c.media_type
           AND sa.region = 'AU'
           AND sa.provider_id IN (${ph})
-        WHERE c.display_status NOT IN ('unavailable', 'coming_soon')
+        WHERE c.display_status = 'streaming'
         ${typeClause}
         ORDER BY c.popularity DESC
         LIMIT 100
@@ -45,7 +45,7 @@ router.get('/', (req, res) => {
           release_date, vote_average, popularity, display_status,
           runtime, number_of_seasons, number_of_episodes, certification
         FROM content
-        WHERE display_status NOT IN ('unavailable', 'coming_soon')
+        WHERE display_status = 'streaming'
         ${typeClause}
         ORDER BY popularity DESC
         LIMIT 100

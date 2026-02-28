@@ -12,17 +12,18 @@ const COMING_SOON_STATUSES = new Set([
  *
  * Classification (per IMP-09):
  *   streaming     — has confirmed AU streaming availability
- *   in_cinemas    — released, no streaming, within 90 days of release
- *   unavailable   — released, no streaming, older than 90 days
+ *   in_cinemas    — movies only: released, no streaming, within 90 days of release
+ *   unavailable   — released, no streaming, older than 90 days (or TV within 90 days)
  *   coming_soon   — not yet released, or future release date
  *
  * @param {object} params
  * @param {string|null} params.tmdbStatus   TMDB status field (may be null if detail not yet fetched)
  * @param {string|null} params.releaseDate  ISO date string YYYY-MM-DD (or null)
  * @param {boolean}     params.hasAuStreaming  whether item has confirmed AU flatrate streaming
+ * @param {string|null} params.mediaType    'movie' | 'tv' — only movies can be in_cinemas
  * @returns {'streaming'|'in_cinemas'|'unavailable'|'coming_soon'}
  */
-function computeDisplayStatus({ tmdbStatus, releaseDate, hasAuStreaming }) {
+function computeDisplayStatus({ tmdbStatus, releaseDate, hasAuStreaming, mediaType }) {
   // Confirmed streaming always overrides all other signals
   if (hasAuStreaming) {
     return 'streaming';
@@ -46,9 +47,10 @@ function computeDisplayStatus({ tmdbStatus, releaseDate, hasAuStreaming }) {
       return 'coming_soon';
     }
 
-    // Past release, within 90-day theatrical window → in cinemas
+    // Past release, within 90-day theatrical window → in_cinemas for movies only
+    // TV shows don't have theatrical releases; classify them as unavailable
     if (now - releaseMs <= NINETY_DAYS_MS) {
-      return 'in_cinemas';
+      return mediaType === 'movie' ? 'in_cinemas' : 'unavailable';
     }
 
     // Past release, older than 90 days, no streaming → data gap

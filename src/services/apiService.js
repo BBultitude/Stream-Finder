@@ -30,8 +30,8 @@ export async function fetchNew({ type, providers } = {}) {
   return data.results || []
 }
 
-export async function fetchBrowse({ page = 1, type, providers } = {}) {
-  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers })
+export async function fetchBrowse({ page = 1, type, providers, decade } = {}) {
+  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers, decade: decade || undefined })
   const data = await fetchCached('/api/browse' + qs)
   return data.results || []
 }
