@@ -1,8 +1,41 @@
+import { useState, useEffect } from 'react'
 import ContentCard from './ContentCard'
 import { Bookmark } from './icons'
+import { fetchDetail } from '../services/apiService'
+import { updateWatchlistItem } from '../services/watchlistService'
 
 export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatchlistToggle, onClearAll }) {
-  if (items.length === 0) {
+  // Initialise display from stored items; refreshed in background on mount
+  const [displayItems, setDisplayItems] = useState(items)
+
+  // On tab open (mount), refresh streaming + display_status for each saved item.
+  // Stored data shows immediately (optimistic); badges update as fresh responses arrive.
+  useEffect(() => {
+    if (items.length === 0) return
+    setDisplayItems(items)
+
+    items.forEach(async (item) => {
+      try {
+        const fresh = await fetchDetail(item.media_type, item.id)
+        if (!fresh || (fresh.streaming === undefined && fresh.display_status === undefined)) return
+
+        const updated = {
+          ...item,
+          streaming: fresh.streaming ?? item.streaming,
+          display_status: fresh.display_status ?? item.display_status
+        }
+
+        setDisplayItems(prev =>
+          prev.map(i => (i.media_type === item.media_type && i.id === item.id) ? updated : i)
+        )
+        await updateWatchlistItem(updated)
+      } catch {
+        // Silent — stale stored data is better than an error state
+      }
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (displayItems.length === 0) {
     return (
       <div className="text-center py-20">
         <Bookmark className="w-16 h-16 text-gray-600 mx-auto mb-4" />
@@ -16,7 +49,7 @@ export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatc
     <>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">
-          My Watchlist <span className="text-gray-400 text-lg font-normal">({items.length})</span>
+          My Watchlist <span className="text-gray-400 text-lg font-normal">({displayItems.length})</span>
         </h2>
         <button
           onClick={onClearAll}
@@ -26,14 +59,18 @@ export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatc
         </button>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {items.map(item => (
-          <ContentCard
-            key={`${item.media_type}:${item.id}`}
-            item={item}
-            onClick={onItemClick}
-            watchlistKeys={watchlistKeys}
-            onWatchlistToggle={onWatchlistToggle}
-          />
+        {displayItems.map(item => (
+          <div key={`${item.media_type}:${item.id}`}>
+            <ContentCard
+              item={item}
+              onClick={onItemClick}
+              watchlistKeys={watchlistKeys}
+              onWatchlistToggle={onWatchlistToggle}
+            />
+            {item.display_status === 'unavailable' && (
+              <p className="mt-1 text-xs text-center text-amber-500 font-medium">No longer streaming</p>
+            )}
+          </div>
         ))}
       </div>
     </>

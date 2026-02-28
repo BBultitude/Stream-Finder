@@ -67,19 +67,13 @@ function upsertContent(db, item, now) {
   const title = item.title || item.name || 'Unknown';
   const releaseDate = item.release_date || item.first_air_date || null;
 
+  // INSERT OR IGNORE: writes all fields on first insert; no-op on conflict
+  // (static identity fields — title, overview, poster, release_date — are never overwritten)
   db.prepare(`
-    INSERT INTO content
+    INSERT OR IGNORE INTO content
       (id, media_type, title, overview, poster_path, release_date,
        vote_average, popularity, display_status, last_updated)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id, media_type) DO UPDATE SET
-      title          = excluded.title,
-      overview       = excluded.overview,
-      poster_path    = excluded.poster_path,
-      release_date   = excluded.release_date,
-      vote_average   = excluded.vote_average,
-      popularity     = excluded.popularity,
-      last_updated   = excluded.last_updated
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'coming_soon', ?)
   `).run(
     item.id,
     item.media_type,
@@ -89,9 +83,14 @@ function upsertContent(db, item, now) {
     releaseDate,
     item.vote_average || 0,
     item.popularity || 0,
-    'coming_soon',  // placeholder; updated after streaming check
     now
   );
+
+  // Always update mutable fields (popularity/vote_average drift over time)
+  db.prepare(`
+    UPDATE content SET popularity = ?, vote_average = ?, last_updated = ?
+    WHERE id = ? AND media_type = ?
+  `).run(item.popularity || 0, item.vote_average || 0, now, item.id, item.media_type);
 }
 
 function upsertGenres(db, item) {
@@ -145,9 +144,13 @@ async function fetchAndStoreDetail(db, contentId, mediaType, now) {
 
     db.prepare(`
       UPDATE content
-      SET runtime = ?, number_of_seasons = ?, number_of_episodes = ?, certification = ?
+      SET runtime            = COALESCE(runtime, ?),
+          number_of_seasons  = ?,
+          number_of_episodes = ?,
+          certification      = ?,
+          last_updated       = ?
       WHERE id = ? AND media_type = ?
-    `).run(runtime, numberOfSeasons, numberOfEpisodes, certification, contentId, mediaType);
+    `).run(runtime, numberOfSeasons, numberOfEpisodes, certification, now, contentId, mediaType);
 
     const upsertProvider = db.prepare(`
       INSERT INTO providers (provider_id, provider_name, logo_path)
@@ -307,6 +310,93 @@ async function refreshStreamingAvailability() {
   }
 }
 
+/**
+ * Populate the catalogue with well-known content from each decade (1970s–2020s).
+ * Queries TMDB /discover sorted by vote_count descending, 5 pages per decade per
+ * media type. Skips fetchAndStoreDetail for items already refreshed within 7 days
+ * (handled by trending/new_releases/streaming sweep); fetches full detail for new
+ * or stale items only.
+ */
+async function refreshByDecade() {
+  const db = getDb();
+  const t0 = Date.now();
+  console.log('[refresh] decade_catalogue: starting');
+  try {
+    const now = Date.now();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const DECADES = [1970, 1980, 1990, 2000, 2010, 2020];
+    let totalCount = 0;
+
+    for (const decadeStart of DECADES) {
+      const decadeEnd  = decadeStart + 9;
+      const startDate  = `${decadeStart}-01-01`;
+      const endDate    = `${decadeEnd}-12-31`;
+
+      // Fetch 5 pages of top-voted movies + TV for this decade
+      const rawItems = [];
+      for (let page = 1; page <= 5; page++) {
+        const [movies, tv] = await Promise.all([
+          tmdbGet(`/discover/movie?sort_by=vote_count.desc&vote_count.gte=100&primary_release_date.gte=${startDate}&primary_release_date.lte=${endDate}&page=${page}`),
+          tmdbGet(`/discover/tv?sort_by=vote_count.desc&vote_count.gte=100&first_air_date.gte=${startDate}&first_air_date.lte=${endDate}&page=${page}`)
+        ]);
+        if (movies.results) rawItems.push(...movies.results.map(m => ({ ...m, media_type: 'movie' })));
+        if (tv.results)     rawItems.push(...tv.results.map(t => ({ ...t, media_type: 'tv' })));
+      }
+
+      const validItems = rawItems.filter(i => ['movie', 'tv'].includes(i.media_type));
+      if (validItems.length === 0) continue;
+
+      // Bulk-identify items already in DB with a recent last_updated (skip detail fetch)
+      const movieIds = validItems.filter(i => i.media_type === 'movie').map(i => i.id);
+      const tvIds    = validItems.filter(i => i.media_type === 'tv').map(i => i.id);
+      const freshSet = new Set();
+      const cutoff   = now - SEVEN_DAYS_MS;
+
+      if (movieIds.length) {
+        const ph = movieIds.map(() => '?').join(',');
+        db.prepare(
+          `SELECT id FROM content WHERE media_type = 'movie' AND id IN (${ph}) AND last_updated > ?`
+        ).all(...movieIds, cutoff).forEach(r => freshSet.add(`movie:${r.id}`));
+      }
+      if (tvIds.length) {
+        const ph = tvIds.map(() => '?').join(',');
+        db.prepare(
+          `SELECT id FROM content WHERE media_type = 'tv' AND id IN (${ph}) AND last_updated > ?`
+        ).all(...tvIds, cutoff).forEach(r => freshSet.add(`tv:${r.id}`));
+      }
+
+      // Upsert all items (metadata), collect those needing a full detail fetch
+      const needsDetail = [];
+      for (const item of validItems) {
+        upsertContent(db, item, now);
+        upsertGenres(db, item);
+        if (!freshSet.has(`${item.media_type}:${item.id}`)) {
+          needsDetail.push(item);
+        }
+        totalCount++;
+      }
+
+      // Batch-process detail fetches for new / stale items
+      for (let i = 0; i < needsDetail.length; i += BATCH_SIZE) {
+        const batch = needsDetail.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async item => {
+          const hasStreaming = await fetchAndStoreDetail(db, item.id, item.media_type, now);
+          setDisplayStatus(db, item.id, item.media_type, hasStreaming, item.release_date || item.first_air_date);
+        }));
+        if (i + BATCH_SIZE < needsDetail.length) await sleep(BATCH_DELAY_MS);
+      }
+
+      console.log(`[refresh] decade_catalogue: ${decadeStart}s — ${validItems.length} items (${needsDetail.length} detail fetches)`);
+    }
+
+    logRefresh(db, 'decade_catalogue', 'success', totalCount);
+    console.log(`[refresh] decade_catalogue: done — ${totalCount} items in ${Date.now() - t0}ms`);
+  } catch (err) {
+    console.error('[refresh] decade_catalogue: failed —', err.message);
+    logRefresh(db, 'decade_catalogue', `error: ${err.message}`, 0);
+  }
+}
+
 // ─── Startup and scheduling ───────────────────────────────────────────────────
 
 /**
@@ -343,7 +433,12 @@ function startCronJobs() {
     refreshStreamingAvailability().catch(err => console.error('[cron] streaming_availability:', err.message));
   });
 
-  console.log('[refresh] Cron jobs scheduled (trending 6h, new_releases 12h, streaming 03:00 daily)');
+  // Decade catalogue: every Sunday at 04:00 (after 03:00 streaming sweep)
+  cron.schedule('0 4 * * 0', () => {
+    refreshByDecade().catch(err => console.error('[cron] decade_catalogue:', err.message));
+  });
+
+  console.log('[refresh] Cron jobs scheduled (trending 6h, new_releases 12h, streaming 03:00 daily, decade_catalogue Sun 04:00)');
 }
 
 module.exports = { runInitialRefreshIfNeeded, startCronJobs };

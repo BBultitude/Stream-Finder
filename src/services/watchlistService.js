@@ -48,6 +48,16 @@ export async function removeFromWatchlist(id, mediaType) {
   })
 }
 
+export async function updateWatchlistItem(item) {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const record = { ...item, watchlist_key: itemKey(item.id, item.media_type) }
+    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).put(record)
+    req.onsuccess = () => resolve()
+    req.onerror = (e) => reject(e.target.error)
+  })
+}
+
 export async function clearWatchlist() {
   const db = await openDb()
   return new Promise((resolve, reject) => {

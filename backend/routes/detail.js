@@ -2,8 +2,7 @@
 
 const { Router } = require('express');
 const { getDb } = require('../db');
-const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { computeDisplayStatus } = require('../utils/displayStatus');
+const { attachStreamingAndGenres, buildStreamingMap } = require('../utils/contentHelper');
 
 const router = Router();
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -39,6 +38,20 @@ router.get('/:type/:id', async (req, res) => {
     const apiKey = process.env.TMDB_API_KEY;
     if (!apiKey) throw new Error('TMDB_API_KEY not configured');
 
+    const db = getDb();
+
+    // Synchronous DB lookups for source item (needed for local recommendations + watchlist refresh)
+    const srcGenreIds = db.prepare(
+      'SELECT genre_id FROM content_genres WHERE content_id = ? AND content_media_type = ?'
+    ).all(contentId, type).map(r => r.genre_id);
+
+    const contentRow = db.prepare(
+      'SELECT display_status FROM content WHERE id = ? AND media_type = ?'
+    ).get(contentId, type);
+
+    const streamingMap = buildStreamingMap(db, [{ id: contentId, media_type: type }]);
+    const streaming = streamingMap[`${contentId}_${type}`] || [];
+
     // Fetch external_ids, recommendations, videos, and credits in parallel
     const [externalIds, recsData, videosData, creditsData] = await Promise.all([
       tmdbGet(`/${type}/${contentId}/external_ids`, apiKey),
@@ -47,10 +60,9 @@ router.get('/:type/:id', async (req, res) => {
       tmdbGet(`/${type}/${contentId}/credits`, apiKey).catch(() => ({ cast: [] }))
     ]);
 
-    // Enrich recommendations: prefer DB data (real streaming + display_status).
-    // For items not yet in DB, lazily fetch their AU providers from TMDB and store them.
-    const db = getDb();
-    const recommendations = await enrichRecommendations(db, recsData, type, apiKey);
+    // Hybrid recommendations: TMDB recs (streaming-only from DB) + local genre-similarity,
+    // merged and deduplicated up to 20. No lazy TMDB provider fetches.
+    const recommendations = enrichRecommendations(db, recsData, type, contentId, srcGenreIds);
 
     const cast = (creditsData.cast || []).slice(0, 6).map(p => ({
       id: p.id,
@@ -63,7 +75,9 @@ router.get('/:type/:id', async (req, res) => {
       imdb_id: externalIds.imdb_id || null,
       trailer_key: findTrailerKey(videosData),
       recommendations,
-      cast
+      cast,
+      streaming,
+      display_status: contentRow?.display_status || null
     };
 
     detailCache.set(cacheKey, { data: result, ts: Date.now() });
@@ -75,153 +89,79 @@ router.get('/:type/:id', async (req, res) => {
 });
 
 /**
- * Enrich recommendation items with AU streaming data.
- * - Items in our DB: use stored streaming + display_status.
- * - Items NOT in DB: lazily fetch /watch/providers from TMDB, store in DB,
- *   then include the result. The detail cache (1h TTL) ensures this only
- *   runs once per hour per content item.
+ * Build hybrid recommendations:
+ * 1. TMDB recs filtered to items already in our DB with display_status = 'streaming'
+ * 2. Local DB similarity recs by genre overlap (fills remaining slots to 20)
+ * Merged and deduplicated — all results guaranteed to have AU streaming data.
+ * No lazy TMDB provider fetches.
  */
-async function enrichRecommendations(db, recsData, fallbackType, apiKey) {
-  if (recsData.length === 0) return [];
+function enrichRecommendations(db, recsData, fallbackType, sourceId, sourceGenreIds) {
+  const tmdbItems = recsData.map(r => ({ ...r, media_type: r.media_type || fallbackType }));
 
-  const items = recsData.map(r => ({ ...r, media_type: r.media_type || fallbackType }));
-
-  // Bulk-query any items that exist in our content table
-  const movieIds = items.filter(i => i.media_type === 'movie').map(i => i.id);
-  const tvIds    = items.filter(i => i.media_type === 'tv').map(i => i.id);
-  let dbRows = [];
+  // Filter TMDB recs to items in our DB with streaming status only
+  const movieIds = tmdbItems.filter(i => i.media_type === 'movie').map(i => i.id);
+  const tvIds    = tmdbItems.filter(i => i.media_type === 'tv').map(i => i.id);
+  const tmdbDbRows = [];
 
   if (movieIds.length) {
     const ph = movieIds.map(() => '?').join(',');
-    dbRows.push(...db.prepare(`
+    tmdbDbRows.push(...db.prepare(`
       SELECT id, media_type, title, overview, poster_path, release_date, vote_average,
         popularity, display_status, runtime, number_of_seasons, number_of_episodes, certification
-      FROM content WHERE media_type = 'movie' AND id IN (${ph})
+      FROM content WHERE media_type = 'movie' AND id IN (${ph}) AND display_status = 'streaming'
     `).all(...movieIds));
   }
   if (tvIds.length) {
     const ph = tvIds.map(() => '?').join(',');
-    dbRows.push(...db.prepare(`
+    tmdbDbRows.push(...db.prepare(`
       SELECT id, media_type, title, overview, poster_path, release_date, vote_average,
         popularity, display_status, runtime, number_of_seasons, number_of_episodes, certification
-      FROM content WHERE media_type = 'tv' AND id IN (${ph})
+      FROM content WHERE media_type = 'tv' AND id IN (${ph}) AND display_status = 'streaming'
     `).all(...tvIds));
   }
 
-  const inDb = new Set(dbRows.map(r => `${r.media_type}:${r.id}`));
+  // Local DB similarity recs by genre overlap (pure SQL, no API calls)
+  const localRows = buildLocalRecommendations(db, sourceId, fallbackType, sourceGenreIds);
 
-  // For items not yet in DB, lazily fetch their AU providers from TMDB and store them
-  const unknownItems = items.filter(i => !inDb.has(`${i.media_type}:${i.id}`));
-  if (unknownItems.length > 0) {
-    await Promise.all(unknownItems.map(item => lazyFetchAndStoreProviders(db, item, apiKey)));
-
-    // Re-query to pick up the newly stored rows
-    const newMovieIds = unknownItems.filter(i => i.media_type === 'movie').map(i => i.id);
-    const newTvIds    = unknownItems.filter(i => i.media_type === 'tv').map(i => i.id);
-    if (newMovieIds.length) {
-      const ph = newMovieIds.map(() => '?').join(',');
-      dbRows.push(...db.prepare(`
-        SELECT id, media_type, title, overview, poster_path, release_date, vote_average,
-          popularity, display_status, runtime, number_of_seasons, number_of_episodes, certification
-        FROM content WHERE media_type = 'movie' AND id IN (${ph})
-      `).all(...newMovieIds));
+  // Merge: TMDB recs first, local fills to 20, deduplicated by id+media_type
+  const seen = new Set();
+  const merged = [];
+  for (const row of [...tmdbDbRows, ...localRows]) {
+    const key = `${row.media_type}:${row.id}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(row);
+      if (merged.length >= 20) break;
     }
-    if (newTvIds.length) {
-      const ph = newTvIds.map(() => '?').join(',');
-      dbRows.push(...db.prepare(`
-        SELECT id, media_type, title, overview, poster_path, release_date, vote_average,
-          popularity, display_status, runtime, number_of_seasons, number_of_episodes, certification
-        FROM content WHERE media_type = 'tv' AND id IN (${ph})
-      `).all(...newTvIds));
-    }
-
-    for (const r of dbRows) inDb.add(`${r.media_type}:${r.id}`);
   }
 
-  const dbRowMap = new Map(dbRows.map(r => [`${r.media_type}:${r.id}`, r]));
-  const mergedRows = items.map(item =>
-    dbRowMap.get(`${item.media_type}:${item.id}`) || item
-  );
-
-  // attachStreamingAndGenres fetches streaming + genres from DB for all items
-  const shaped = attachStreamingAndGenres(db, mergedRows);
-
-  // For items still not in DB (lazy fetch failed), clear the 'coming_soon' default.
-  // Filter out anything with no AU streaming — no point recommending unwatchable content.
-  return shaped
-    .map((item, i) => {
-      const key = `${mergedRows[i].media_type}:${mergedRows[i].id}`;
-      return inDb.has(key) ? item : { ...item, display_status: null };
-    })
-    .filter(item => item.display_status !== 'unavailable');
+  if (merged.length === 0) return [];
+  return attachStreamingAndGenres(db, merged);
 }
 
 /**
- * Fetch AU watch/providers for a single recommendation item that isn't in our DB,
- * store the content row and streaming availability, and compute display_status.
- * Uses INSERT OR IGNORE so concurrent requests are safe and existing rows are preserved.
+ * Find similar content by genre overlap using a pure DB query.
+ * Primary signal: shared genre count. Tiebreaker: popularity.
+ * Results guaranteed to have display_status = 'streaming'.
  */
-async function lazyFetchAndStoreProviders(db, item, apiKey) {
-  const { id, media_type } = item;
-  try {
-    const now = Date.now();
-    const title       = item.title || item.name || 'Unknown';
-    const releaseDate = item.release_date || item.first_air_date || null;
-
-    // Insert a basic content row (ignore if already exists from a concurrent request)
-    db.prepare(`
-      INSERT OR IGNORE INTO content
-        (id, media_type, title, overview, poster_path, release_date,
-         vote_average, popularity, display_status, last_updated)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'coming_soon', ?)
-    `).run(id, media_type, title, item.overview || '', item.poster_path || null,
-           releaseDate, item.vote_average || 0, item.popularity || 0, now);
-
-    // Store genre associations
-    if (item.genre_ids?.length) {
-      const insertCG = db.prepare(`
-        INSERT OR IGNORE INTO content_genres (content_id, content_media_type, genre_id)
-        VALUES (?, ?, ?)
-      `);
-      for (const gid of item.genre_ids) insertCG.run(id, media_type, gid);
-    }
-
-    // Fetch AU watch/providers from TMDB
-    const data = await tmdbGet(`/${media_type}/${id}/watch/providers`, apiKey);
-    const auData = data.results?.AU || {};
-
-    const upsertProvider = db.prepare(`
-      INSERT INTO providers (provider_id, provider_name, logo_path)
-      VALUES (?, ?, ?)
-      ON CONFLICT(provider_id) DO UPDATE SET
-        provider_name = excluded.provider_name,
-        logo_path     = excluded.logo_path
-    `);
-    const insertAvail = db.prepare(`
-      INSERT INTO streaming_availability
-        (content_id, content_media_type, provider_id, region, type, first_seen, last_confirmed)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(content_id, content_media_type, provider_id, region, type)
-      DO UPDATE SET last_confirmed = excluded.last_confirmed
-    `);
-
-    let hasAuFlatrate = false;
-    for (const avType of ['flatrate', 'rent', 'buy']) {
-      for (const p of auData[avType] || []) {
-        upsertProvider.run(p.provider_id, p.provider_name, p.logo_path || null);
-        insertAvail.run(id, media_type, p.provider_id, 'AU', avType, now, now);
-        if (avType === 'flatrate') hasAuFlatrate = true;
-      }
-    }
-
-    // Update display_status now that we have real streaming data
-    const displayStatus = computeDisplayStatus({ tmdbStatus: null, releaseDate, hasAuStreaming: hasAuFlatrate });
-    db.prepare(`UPDATE content SET display_status = ?, last_updated = ? WHERE id = ? AND media_type = ?`)
-      .run(displayStatus, now, id, media_type);
-
-  } catch (err) {
-    console.error(`[detail] Lazy provider fetch failed for ${media_type}/${id}:`, err.message);
-  }
+function buildLocalRecommendations(db, contentId, mediaType, genreIds) {
+  if (!genreIds || genreIds.length === 0) return [];
+  const ph = genreIds.map(() => '?').join(',');
+  return db.prepare(`
+    SELECT c.id, c.media_type, c.title, c.overview, c.poster_path, c.release_date,
+      c.vote_average, c.popularity, c.display_status, c.runtime,
+      c.number_of_seasons, c.number_of_episodes, c.certification,
+      COUNT(DISTINCT cg2.genre_id) AS shared_genres
+    FROM content c
+    JOIN content_genres cg2
+      ON c.id = cg2.content_id AND c.media_type = cg2.content_media_type
+    WHERE cg2.genre_id IN (${ph})
+      AND NOT (c.id = ? AND c.media_type = ?)
+      AND c.display_status = 'streaming'
+    GROUP BY c.id, c.media_type
+    ORDER BY shared_genres DESC, c.popularity DESC
+    LIMIT 20
+  `).all(...genreIds, contentId, mediaType);
 }
 
 async function fetchRecommendations(type, id, apiKey) {

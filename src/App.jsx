@@ -48,6 +48,18 @@ export default function App() {
   const [searchHistory, setSearchHistory]     = useState([])
   const [searchFocused, setSearchFocused]     = useState(false)
   const searchInputRef = useRef(null)
+  const tabScrollPositions = useRef({})
+  const prevActiveTab = useRef(activeTab)
+
+  // Save scroll position when leaving a tab; restore when returning to it
+  useEffect(() => {
+    tabScrollPositions.current[prevActiveTab.current] = window.scrollY
+    const savedPos = tabScrollPositions.current[activeTab] || 0
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: savedPos, behavior: 'instant' })
+    })
+    prevActiveTab.current = activeTab
+  }, [activeTab])
 
   const watchlistKeys = useMemo(
     () => new Set(watchlist.map(i => `${i.media_type}:${i.id}`)),
