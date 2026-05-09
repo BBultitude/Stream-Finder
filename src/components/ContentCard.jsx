@@ -1,4 +1,7 @@
 import { Film, Tv, Bookmark } from './icons'
+import { GENRES } from './FilterBar'
+
+const GENRE_MAP = Object.fromEntries(GENRES.map(g => [g.id, g.name]))
 
 function formatRuntime(minutes) {
   if (!minutes) return null
@@ -68,6 +71,14 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
               {isMovie ? <Film className="w-12 h-12 text-gray-600" /> : <Tv className="w-12 h-12 text-gray-600" />}
             </div>
         }
+        {(() => {
+          const newPlatform = item.streaming && item.streaming.find(s => s.isNew)
+          return newPlatform && (
+            <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">
+              New on {newPlatform.name}
+            </div>
+          )
+        })()}
         {onWatchlistToggle && (
           <button
             onClick={(e) => { e.stopPropagation(); onWatchlistToggle(item) }}
@@ -111,6 +122,16 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
             </span>
           )}
         </div>
+        {(() => {
+          const pills = (item.genre_ids || []).map(id => GENRE_MAP[id]).filter(Boolean).slice(0, 2)
+          return pills.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {pills.map(name => (
+                <span key={name} className="text-xs text-gray-400 bg-gray-700/60 rounded px-1.5 py-0.5">{name}</span>
+              ))}
+            </div>
+          )
+        })()}
         {item.streaming && item.streaming.length > 0
           ? <div>
               <p className="text-xs text-gray-400 mb-2">Available on:</p>

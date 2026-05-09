@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchTrending, fetchNew, fetchBrowse, fetchTop10, fetchSearch, fetchDetail, fetchComingSoon } from './services/apiService'
+import { fetchTrending, fetchNew, fetchBrowse, fetchTop10, fetchSearch, fetchDetail, fetchComingSoon, fetchRandom } from './services/apiService'
 import { getWatchlist, addToWatchlist, removeFromWatchlist, clearWatchlist } from './services/watchlistService'
 import { getSearchHistory, addToSearchHistory, removeFromSearchHistory, clearSearchHistory } from './services/searchHistoryService'
 import { STREAMING_SERVICES } from './components/FilterBar'
@@ -38,6 +38,7 @@ export default function App() {
   const [selectedContentType, setSelectedContentType]     = useState('all')
   const [selectedDecade, setSelectedDecade]               = useState(null)
   const [selectedMinRating, setSelectedMinRating]         = useState(0)
+  const [sortBy, setSortBy]                               = useState('popularity')
   const [activeTab, setActiveTab]             = useState('trending')
   const [selectedItem, setSelectedItem]       = useState(null)
   const [similarContent, setSimilarContent]   = useState([])
@@ -120,7 +121,7 @@ export default function App() {
   const loadBrowseAll = async (page = 1) => {
     setLoading(true)
     try {
-      const items = await fetchBrowse({ page, type: selectedContentType, providers: getProviderParam(), decade: selectedDecade })
+      const items = await fetchBrowse({ page, type: selectedContentType, providers: getProviderParam(), decade: selectedDecade, sortBy })
       const deduped = deduplicateById(items)
       if (page === 1) {
         setBrowseAll(deduped)
@@ -159,6 +160,12 @@ export default function App() {
     setBrowseAllPage(1)
     loadBrowseAll(1)
   }, [selectedDecade])
+
+  // Reload browse when sort order changes
+  useEffect(() => {
+    setBrowseAllPage(1)
+    loadBrowseAll(1)
+  }, [sortBy])
 
   // Debounced search
   useEffect(() => {
@@ -241,6 +248,15 @@ export default function App() {
     )
   }
 
+  const handleSurpriseMe = async () => {
+    try {
+      const item = await fetchRandom({ type: selectedContentType, providers: getProviderParam(), decade: selectedDecade })
+      if (item) handleItemClick(item)
+    } catch {
+      // best-effort; silently ignore
+    }
+  }
+
   const filterContent = (content) => {
     let filtered = content
     if (selectedGenres.length > 0) {
@@ -319,6 +335,7 @@ export default function App() {
           setSelectedDecade(null)
           setSelectedMinRating(0)
         }}
+        onSurpriseMe={handleSurpriseMe}
       />
 
       {/* Main content — pb-20 accounts for bottom nav height on mobile */}
@@ -422,6 +439,10 @@ export default function App() {
               setSelectedDecade(null)
               setSelectedMinRating(0)
             }}
+            onSurpriseMe={handleSurpriseMe}
+            activeTab={activeTab}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
           />
         </div>
 

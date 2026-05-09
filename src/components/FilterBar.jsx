@@ -50,13 +50,23 @@ const CONTENT_TYPES = [
   { id: 'tv',    name: 'TV Shows' },
 ]
 
+const SORT_OPTIONS = [
+  { id: 'popularity',   label: 'Most Popular' },
+  { id: 'vote_average', label: 'Highest Rated' },
+  { id: 'release_date', label: 'Newest First' },
+]
+
 export default function FilterBar({
   selectedServices, onServiceToggle,
   selectedGenres, onGenreToggle,
   selectedContentType, onContentTypeChange,
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
-  onClearAll
+  onClearAll,
+  onSurpriseMe,
+  activeTab,
+  sortBy,
+  onSortChange
 }) {
   const [showServiceFilters, setShowServiceFilters] = useState(false)
   const [showGenreFilters, setShowGenreFilters]     = useState(false)
@@ -186,16 +196,44 @@ export default function FilterBar({
         ))}
       </div>
 
-      {/* Clear all */}
-      {hasFilters && (
-        <button
-          onClick={onClearAll}
-          className="text-sm text-gray-300 hover:text-white flex items-center gap-1"
-        >
-          <X className="w-3 h-3" />
-          Clear all filters
-        </button>
+      {/* Sort — Browse tab only */}
+      {activeTab === 'browse' && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-sm text-gray-300">Sort:</span>
+          {SORT_OPTIONS.map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => onSortChange(opt.id)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                sortBy === opt.id
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       )}
+
+      {/* Clear all + Surprise Me */}
+      <div className="flex items-center gap-4">
+        {hasFilters && (
+          <button
+            onClick={onClearAll}
+            className="text-sm text-gray-300 hover:text-white flex items-center gap-1"
+          >
+            <X className="w-3 h-3" />
+            Clear all filters
+          </button>
+        )}
+        <button
+          onClick={onSurpriseMe}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium text-white transition-colors"
+        >
+          🎲 Surprise Me
+        </button>
+      </div>
     </div>
   )
 }

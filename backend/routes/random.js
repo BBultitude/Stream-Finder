@@ -6,31 +6,20 @@ const { attachStreamingAndGenres } = require('../utils/contentHelper');
 
 const router = Router();
 
-const PAGE_SIZE = 40;
-
 /**
- * GET /api/browse
- * Paginated browse of streaming content sorted by popularity.
- * Query params:
- *   page      — integer page number (default 1)
- *   type      — 'movie' | 'tv'  (omit for all)
- *   providers — comma-separated TMDB provider IDs to filter by
- *   decade    — start year of decade, e.g. 1990 filters 1990–1999
- *   sortBy    — 'popularity' | 'vote_average' | 'release_date' (default popularity)
+ * GET /api/random
+ * Returns a single random streaming title matching the active filters.
+ * Query params: type, providers, decade (same as /api/browse)
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, decade, sortBy } = req.query;
-
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const offset = (page - 1) * PAGE_SIZE;
+    const { type, providers, decade } = req.query;
 
     const providerIds = parseProviderIds(providers);
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const decadeClause = buildDecadeClause(decade, params);
-    const orderClause = buildOrderClause(sortBy);
 
     let rows;
     if (providerIds.length > 0) {
@@ -48,9 +37,9 @@ router.get('/', (req, res) => {
         WHERE c.display_status = 'streaming'
         ${typeClause}
         ${decadeClause}
-        ${orderClause}
-        LIMIT ? OFFSET ?
-      `).all(...providerIds, ...params, PAGE_SIZE, offset);
+        ORDER BY RANDOM()
+        LIMIT 1
+      `).all(...providerIds, ...params);
     } else {
       rows = db.prepare(`
         SELECT id, media_type, title, overview, poster_path,
@@ -60,15 +49,20 @@ router.get('/', (req, res) => {
         WHERE display_status = 'streaming'
         ${typeClause}
         ${decadeClause}
-        ${orderClause}
-        LIMIT ? OFFSET ?
-      `).all(...params, PAGE_SIZE, offset);
+        ORDER BY RANDOM()
+        LIMIT 1
+      `).all(...params);
     }
 
-    res.json({ results: attachStreamingAndGenres(db, rows), page });
+    if (rows.length === 0) {
+      return res.json({ result: null });
+    }
+
+    const enriched = attachStreamingAndGenres(db, rows);
+    res.json({ result: enriched[0] });
   } catch (err) {
-    console.error('[GET /api/browse]', err.message);
-    res.status(500).json({ results: [], error: 'Failed to load browse content' });
+    console.error('[GET /api/random]', err.message);
+    res.status(500).json({ result: null, error: 'Failed to load random content' });
   }
 });
 
@@ -83,16 +77,6 @@ function buildTypeClause(type, params) {
     return 'AND media_type = ?';
   }
   return '';
-}
-
-/**
- * Builds a WHERE fragment filtering release_date to a decade range.
- * Uses SUBSTR to extract the 4-digit year from the YYYY-MM-DD text column.
- */
-function buildOrderClause(sortBy) {
-  if (sortBy === 'vote_average') return 'ORDER BY vote_average DESC';
-  if (sortBy === 'release_date') return 'ORDER BY release_date DESC';
-  return 'ORDER BY popularity DESC';
 }
 
 function buildDecadeClause(decade, params) {

@@ -20,7 +20,8 @@ export default function FilterSheet({
   selectedContentType, onContentTypeChange,
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
-  onClearAll
+  onClearAll,
+  onSurpriseMe
 }) {
   if (!open) return null
 
@@ -156,6 +157,14 @@ export default function FilterSheet({
               ))}
             </div>
           </div>
+
+          {/* Surprise Me */}
+          <button
+            onClick={() => { onSurpriseMe(); onClose() }}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-medium transition-colors"
+          >
+            🎲 Surprise Me
+          </button>
 
           {/* Clear + Apply */}
           <div className="flex gap-3 pt-2">

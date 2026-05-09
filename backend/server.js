@@ -18,6 +18,7 @@ app.use('/api/coming-soon',  require('./routes/coming-soon'));
 app.use('/api/search',       require('./routes/search'));
 app.use('/api/detail',       require('./routes/detail'));
 app.use('/api/providers',    require('./routes/providers'));
+app.use('/api/random',       require('./routes/random'));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

@@ -82,6 +82,9 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                         <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
                           {service.logo && <img src={service.logo} alt={service.name} className="w-6 h-6 rounded" />}
                           <span className="text-sm text-white">{service.name}</span>
+                          {service.isNew && (
+                            <span className="px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">New</span>
+                          )}
                         </div>
                       ))}
                     </div>

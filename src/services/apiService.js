@@ -30,8 +30,8 @@ export async function fetchNew({ type, providers } = {}) {
   return data.results || []
 }
 
-export async function fetchBrowse({ page = 1, type, providers, decade } = {}) {
-  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers, decade: decade || undefined })
+export async function fetchBrowse({ page = 1, type, providers, decade, sortBy } = {}) {
+  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers, decade: decade || undefined, sortBy: sortBy !== 'popularity' ? sortBy : undefined })
   const data = await fetchCached('/api/browse' + qs)
   return data.results || []
 }
@@ -55,6 +55,14 @@ export async function fetchComingSoon({ type } = {}) {
   const qs = buildQuery({ type: type !== 'all' ? type : undefined })
   const data = await fetchCached('/api/coming-soon' + qs)
   return data.results || []
+}
+
+// Random is not cached — intentionally returns a different result each call
+export async function fetchRandom({ type, providers, decade } = {}) {
+  const qs = buildQuery({ type: type !== 'all' ? type : undefined, providers, decade: decade || undefined })
+  const res = await fetch('/api/random' + qs)
+  const data = await res.json()
+  return data.result || null
 }
 
 // Detail uses server-side cache; not cached client-side
