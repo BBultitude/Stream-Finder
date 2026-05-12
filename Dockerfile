@@ -6,6 +6,9 @@ COPY package.json ./
 RUN npm install
 COPY index.html vite.config.js tailwind.config.js postcss.config.js ./
 COPY src/ ./src/
+COPY public/ ./public/
+ARG VITE_APP_URL
+ENV VITE_APP_URL=$VITE_APP_URL
 RUN npm run build
 
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
