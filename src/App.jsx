@@ -513,13 +513,14 @@ export default function App() {
               </h2>
             )}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {displayContent.map(item => (
+              {displayContent.map((item, i) => (
                 <ContentCard
                   key={item.id}
                   item={item}
                   onClick={handleItemClick}
                   watchlistKeys={watchlistKeys}
                   onWatchlistToggle={toggleWatchlist}
+                  priority={i < 4}
                 />
               ))}
             </div>

@@ -1,13 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-AU">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Finder - Find What to Watch in Australia</title>
-    <meta name="description" content="Discover movies and TV shows across Netflix, Stan, Prime Video, Disney+, Paramount+, and Binge. Find what's hot and what's new.">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="en-AU">
+    <meta name="geo.region" content="AU">
+    <meta name="theme-color" content="#1f2937">
+
+    <title>Stream Finder | Movies &amp; TV Shows Streaming in Australia</title>
+    <meta name="description" content="Discover movies and TV shows streaming in Australia. Browse Netflix, Stan, Prime Video, Disney+, Binge and Paramount+. Find what's hot, new releases, and the Top 10 in Australia.">
+
+    <link rel="canonical" href="%VITE_APP_URL%/">
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+
+    <!-- OpenGraph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="%VITE_APP_URL%/">
+    <meta property="og:site_name" content="Stream Finder">
+    <meta property="og:locale" content="en_AU">
+    <meta property="og:title" content="Stream Finder | Movies &amp; TV Shows Streaming in Australia">
+    <meta property="og:description" content="Discover movies and TV shows streaming in Australia. Browse Netflix, Stan, Prime Video, Disney+, Binge and Paramount+.">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Stream Finder | Movies &amp; TV Shows Streaming in Australia">
+    <meta name="twitter:description" content="Discover movies and TV shows streaming in Australia. Browse Netflix, Stan, Prime Video, Disney+, Binge and Paramount+.">
+
+    <!-- Preconnect to TMDB CDN — establishes connection before JS fires, reduces LCP delay -->
+    <link rel="preconnect" href="https://image.tmdb.org">
+    <link rel="dns-prefetch" href="https://image.tmdb.org">
+
+    <!-- Critical inline CSS — prevents white flash while Vite CSS bundle loads -->
+    <style>body{background:#111827;color:#fff;margin:0}</style>
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Stream Finder",
+      "url": "https://stream-finder.brydel.net/",
+      "description": "Discover movies and TV shows streaming in Australia across Netflix, Stan, Prime Video, Disney+, Binge and Paramount+.",
+      "applicationCategory": "EntertainmentApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "AUD"
+      },
+      "areaServed": {
+        "@type": "Country",
+        "name": "Australia"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://stream-finder.brydel.net/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
 </head>
 <body>
+    <noscript>
+        <h1>Stream Finder</h1>
+        <p>Find movies and TV shows streaming in Australia on Netflix, Stan, Prime Video, Disney+, Binge, and Paramount+.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
 </body>

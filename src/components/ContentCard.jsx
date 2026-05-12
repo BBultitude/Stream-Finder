@@ -14,7 +14,7 @@ function formatRuntime(minutes) {
  * Content card for the main grid.
  * variant="compact" is used for recommendation rows in the detail modal.
  */
-export default function ContentCard({ item, onClick, variant = 'default', watchlistKeys, onWatchlistToggle }) {
+export default function ContentCard({ item, onClick, variant = 'default', watchlistKeys, onWatchlistToggle, priority = false }) {
   const displayName = item.title || item.name
   const isMovie = item.media_type === 'movie'
   const isSaved = watchlistKeys ? watchlistKeys.has(`${item.media_type}:${item.id}`) : false
@@ -26,7 +26,15 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
         className="bg-gray-800 rounded-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 cursor-pointer"
       >
         {item.poster_path
-          ? <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={displayName} className="w-full aspect-[2/3] object-cover" />
+          ? <img
+              src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+              srcSet={`https://image.tmdb.org/t/p/w342${item.poster_path} 342w, https://image.tmdb.org/t/p/w500${item.poster_path} 500w, https://image.tmdb.org/t/p/w780${item.poster_path} 780w`}
+              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
+              alt={displayName}
+              className="w-full aspect-[2/3] object-cover"
+              loading={priority ? 'eager' : 'lazy'}
+              fetchPriority={priority ? 'high' : 'auto'}
+            />
           : <div className="w-full aspect-[2/3] bg-gray-700 flex items-center justify-center">
               {isMovie ? <Film className="w-12 h-12 text-gray-600" /> : <Tv className="w-12 h-12 text-gray-600" />}
             </div>
@@ -46,7 +54,7 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
               <p className="text-xs text-gray-400 mb-2">Available on:</p>
               <div className="flex flex-wrap gap-1">
                 {item.streaming.slice(0, 3).map((s, i) =>
-                  s.logo && <img key={i} src={s.logo} alt={s.name} title={s.name} className="w-8 h-8 rounded object-cover" />
+                  s.logo && <img key={i} src={s.logo} alt={s.name} title={s.name} className="w-8 h-8 rounded object-cover" loading="lazy" />
                 )}
                 {item.streaming.length > 3 && (
                   <span className="text-xs text-gray-400 self-center">+{item.streaming.length - 3}</span>
@@ -66,7 +74,15 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
     >
       <div className="relative">
         {item.poster_path
-          ? <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={displayName} className="w-full aspect-[2/3] object-cover" />
+          ? <img
+              src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+              srcSet={`https://image.tmdb.org/t/p/w342${item.poster_path} 342w, https://image.tmdb.org/t/p/w500${item.poster_path} 500w, https://image.tmdb.org/t/p/w780${item.poster_path} 780w`}
+              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
+              alt={displayName}
+              className="w-full aspect-[2/3] object-cover"
+              loading={priority ? 'eager' : 'lazy'}
+              fetchPriority={priority ? 'high' : 'auto'}
+            />
           : <div className="w-full aspect-[2/3] bg-gray-700 flex items-center justify-center">
               {isMovie ? <Film className="w-12 h-12 text-gray-600" /> : <Tv className="w-12 h-12 text-gray-600" />}
             </div>
