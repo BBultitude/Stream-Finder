@@ -764,6 +764,104 @@ Leaves all sections          → unavailable (older than 90 days, no streaming)
 
 ---
 
+### IMP-19 — Coming Soon Segmented Control
+
+**Category:** UI
+
+**Description:** Replaces the dual stacked "Now Showing in Cinemas" / "Coming Soon" sections in the Coming Soon tab with a pill segmented control. Users toggle between Streaming (upcoming on streaming) and Cinemas (currently in cinemas) views.
+
+**Motivation:** The stacked layout was visually noisy — users interested only in upcoming streaming titles had to scroll past irrelevant cinema content.
+
+**Impact:** Cleaner Coming Soon tab; each view is focused and scannable.
+
+**Dependencies:** IMP-18
+
+**Risks:** None — local `useState` only, no backend changes.
+
+**Priority:** Low
+
+**Acceptance Criteria:**
+- Default view shows only `display_status === 'coming_soon'` items
+- Cinemas view shows only `display_status === 'in_cinemas'` items
+- Empty state shown per-view if no items exist for that status
+
+---
+
+### IMP-20 — Age Rating Filter (AU Classification)
+
+**Category:** Feature
+
+**Description:** Adds an AU classification ceiling filter to Browse. Selecting a rating (e.g. PG) returns all content rated G or PG. Implemented via `maxCertification` query param on `/api/browse`, resolved via `certsUpTo()` in `backend/utils/certOrder.js`.
+
+**Motivation:** No certification-based filtering existed. Parents and users with content preferences need to filter by audience suitability, not just TMDB vote average.
+
+**Impact:** Browse results filterable by AU age rating; `certOrder.js` utility reusable for future cert-aware queries.
+
+**Dependencies:** IMP-03, IMP-13
+
+**Risks:** Certification string values in DB must match `AU_CERT_ORDER` exactly — verify with `SELECT DISTINCT certification FROM content` after first deployment.
+
+**Priority:** Medium
+
+**Acceptance Criteria:**
+- `GET /api/browse?maxCertification=PG` returns only G and PG content
+- FilterSheet shows Age Rating chip row (G / PG / M / MA15+ / R18+), single-select, toggleable off
+- Filter count badge on mobile includes age rating selection
+- Clear All resets `selectedMaxCertification` to null
+
+---
+
+### IMP-21 — Filter Sheet Compact Redesign
+
+**Category:** UI
+
+**Description:** Reduces FilterSheet button padding and font size across all filter sections (`py-1.5 px-2.5 text-xs`). Section labels changed to `text-xs uppercase tracking-wide`. Fits more filter options without internal scrolling on small phones.
+
+**Motivation:** Previous button sizing (`py-2 px-4`) made the sheet feel heavy and required excessive scrolling on 375px-wide screens.
+
+**Impact:** More filter options visible without scrolling; overall sheet feels lighter.
+
+**Dependencies:** IMP-13
+
+**Risks:** None.
+
+**Priority:** Low
+
+**Acceptance Criteria:**
+- All filter sections visible with minimal scroll on a 375px viewport
+- Buttons remain tap-friendly (minimum 28px touch target)
+
+---
+
+### IMP-22 — Backend Reliability + Security Hardening
+
+**Category:** Technical / Security
+
+**Description:** Four reliability fixes and two security improvements:
+- `detail.js`: `external_ids` TMDB call gets individual `.catch` so a single API failure doesn't 500 the whole detail response
+- `server.js`: `startCronJobs()` runs unconditionally (was chained in `.then()`)
+- `refresh.js`: Per-job `running` lock prevents overlapping cron executions; initial refresh runs jobs independently
+- `search.js`: Per-IP sliding-window rate limiter (10 req/min); conditional braces fix (S2681)
+- `server.js`: `app.disable('x-powered-by')` suppresses Express version disclosure
+
+**Motivation:** Silent cron failures and cascading TMDB errors were operational blind spots on the Raspberry Pi deployment. Rate limiting protects TMDB API quota.
+
+**Impact:** More resilient backend; cron jobs always start; detail responses degrade gracefully; search endpoint protected.
+
+**Dependencies:** IMP-03
+
+**Risks:** None — all changes are additive guards or fallback handlers.
+
+**Priority:** High
+
+**Acceptance Criteria:**
+- Container restart with empty DB: all cron jobs start even if initial populate fails
+- Failing TMDB `external_ids` call: detail endpoint still returns 200 with `imdb_id: null`
+- Search after 10 requests in 60s from same IP: returns 429
+- No `X-Powered-By` header on any API response
+
+---
+
 ## 4. Sequencing
 
 | Order | Item | Rationale |
@@ -786,6 +884,10 @@ Leaves all sections          → unavailable (older than 90 days, no streaming)
 | 16 | IMP-17 — Decade + Enhanced Filters | Polish; implement once core feature set is stable |
 | 17 | IMP-07 — Search Improvements | Low-effort polish once core architecture is stable |
 | 18 | IMP-08 — CI/CD | Quality of life; implement after componentisation |
+| 19 | IMP-22 — Backend Reliability + Security | Hardening; implement after core feature set is stable |
+| 20 | IMP-19 — Coming Soon Segmented Control | UI polish; depends on IMP-18 |
+| 21 | IMP-21 — FilterSheet Compact Redesign | UI polish; depends on IMP-13 |
+| 22 | IMP-20 — Age Rating Filter | New filter capability; depends on IMP-03 and IMP-13 |
 
 
 

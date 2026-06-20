@@ -5,6 +5,32 @@ All notable changes to Stream Finder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0] - 2026-06-21
+
+### Added
+- Coming Soon tab: Streaming / Cinemas pill segmented control — defaults to Streaming view, toggle to see currently in-cinemas titles separately
+- Age rating filter: AU classification ceiling (G / PG / M / MA15+ / R18+) on Browse; filters content at or below selected rating via `maxCertification` backend param
+- `backend/utils/certOrder.js`: AU certification order utility (`certsUpTo()` helper)
+
+### Changed
+- FilterSheet: compact button sizing (`px-2.5 py-1.5 text-xs`), tighter section labels — fits more content without scrolling on small screens
+- FilterSheet: Age Rating section added between Content Type and Streaming Services
+
+### Fixed
+- `detail.js`: TMDB `external_ids` call now has individual `.catch` fallback — a failed TMDB call no longer returns a 500 for the whole detail response
+- `server.js`: `startCronJobs()` now runs unconditionally — previously skipped if `runInitialRefreshIfNeeded()` rejected
+- `search.js`: Conditional braces fix (S2681) on page-1 fetch error check
+- `refresh.js`: Each cron job now has a `running` guard — overlapping executions are skipped with a log warning instead of running concurrently
+- `refresh.js`: Initial refresh chain now runs each job independently — one failure no longer skips the rest
+- `eslint.config.js`: Added `requestAnimationFrame` to globals — was causing CI lint failure
+
+### Security
+- `server.js`: `app.disable('x-powered-by')` — suppresses Express version header
+
+### Technical
+- `search.js`: Per-IP sliding-window rate limiter (10 req/min) to protect TMDB quota
+- Deleted `app.js` legacy CDN monolith — not served since IMP-04, was generating false-positive SonarQube issues
+
 ## [10.1] - 2026-01-18
 
 ### Fixed

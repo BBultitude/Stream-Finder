@@ -24,6 +24,7 @@ export default [
         Promise: 'readonly',
         Set: 'readonly',
         Map: 'readonly',
+        requestAnimationFrame: 'readonly',
       },
       parserOptions: {
         ecmaVersion: 2022,
