@@ -6,6 +6,7 @@ const { getDb } = require('./db');
 const { runInitialRefreshIfNeeded, startCronJobs } = require('./jobs/refresh');
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 3000;
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -51,10 +52,9 @@ app.listen(PORT, '127.0.0.1', () => {
   // Initialise DB schema
   getDb();
 
-  // Populate DB if empty, then start periodic refresh jobs
+  // Populate DB if empty, then start periodic refresh jobs.
+  // startCronJobs runs regardless of whether the initial refresh succeeds.
   runInitialRefreshIfNeeded()
-    .then(() => startCronJobs())
-    .catch(err => {
-      console.error('[server] Startup error:', err.message);
-    });
+    .catch(err => console.error('[server] Initial refresh error:', err.message));
+  startCronJobs();
 });

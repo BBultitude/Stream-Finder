@@ -3,6 +3,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
+const { certsUpTo } = require('../utils/certOrder');
 
 const router = Router();
 
@@ -15,13 +16,14 @@ const PAGE_SIZE = 40;
  *   page      — integer page number (default 1)
  *   type      — 'movie' | 'tv'  (omit for all)
  *   providers — comma-separated TMDB provider IDs to filter by
- *   decade    — start year of decade, e.g. 1990 filters 1990–1999
- *   sortBy    — 'popularity' | 'vote_average' | 'release_date' (default popularity)
+ *   decade           — start year of decade, e.g. 1990 filters 1990–1999
+ *   sortBy           — 'popularity' | 'vote_average' | 'release_date' (default popularity)
+ *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, decade, sortBy } = req.query;
+    const { type, providers, decade, sortBy, maxCertification } = req.query;
 
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const offset = (page - 1) * PAGE_SIZE;
@@ -30,6 +32,7 @@ router.get('/', (req, res) => {
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const decadeClause = buildDecadeClause(decade, params);
+    const certClause = buildCertClause(maxCertification, params);
     const orderClause = buildOrderClause(sortBy);
 
     let rows;
@@ -48,6 +51,7 @@ router.get('/', (req, res) => {
         WHERE c.display_status = 'streaming'
         ${typeClause}
         ${decadeClause}
+        ${certClause}
         ${orderClause}
         LIMIT ? OFFSET ?
       `).all(...providerIds, ...params, PAGE_SIZE, offset);
@@ -60,6 +64,7 @@ router.get('/', (req, res) => {
         WHERE display_status = 'streaming'
         ${typeClause}
         ${decadeClause}
+        ${certClause}
         ${orderClause}
         LIMIT ? OFFSET ?
       `).all(...params, PAGE_SIZE, offset);
@@ -100,6 +105,15 @@ function buildDecadeClause(decade, params) {
   if (!decade || isNaN(d) || d < 1900 || d > 2090) return '';
   params.push(d, d + 9);
   return 'AND CAST(SUBSTR(release_date, 1, 4) AS INTEGER) BETWEEN ? AND ?';
+}
+
+function buildCertClause(maxCertification, params) {
+  if (!maxCertification) return '';
+  const certs = certsUpTo(maxCertification);
+  if (!certs) return '';
+  certs.forEach(c => params.push(c));
+  const ph = certs.map(() => '?').join(',');
+  return `AND certification IN (${ph})`;
 }
 
 module.exports = router;

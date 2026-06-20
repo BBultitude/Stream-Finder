@@ -8,6 +8,21 @@ const { computeDisplayStatus } = require('../utils/displayStatus');
 const router = Router();
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
+// Simple sliding-window rate limiter: max 10 requests per IP per 60 seconds
+const _rateLimitWindows = new Map();
+function isRateLimited(ip) {
+  const now = Date.now();
+  const windowStart = now - 60_000;
+  const timestamps = (_rateLimitWindows.get(ip) || []).filter(t => t > windowStart);
+  if (timestamps.length >= 10) {
+    _rateLimitWindows.set(ip, timestamps);
+    return true;
+  }
+  timestamps.push(now);
+  _rateLimitWindows.set(ip, timestamps);
+  return false;
+}
+
 /**
  * GET /api/search
  * Proxies TMDB search/multi from the backend — API key never leaves the server.
@@ -17,6 +32,11 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
  *   providers — comma-separated TMDB provider IDs to filter results by (optional)
  */
 router.get('/', async (req, res) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ results: [], error: 'Too many requests' });
+  }
+
   const { query, providers } = req.query;
 
   if (!query || !query.trim()) {
@@ -29,7 +49,7 @@ router.get('/', async (req, res) => {
 
     const baseUrl = `${TMDB_BASE}/search/multi?api_key=${apiKey}&language=en-US&query=${encodeURIComponent(query.trim())}`;
     const [page1, page2] = await Promise.all([
-      fetch(baseUrl + '&page=1').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+      fetch(baseUrl + '&page=1').then(r => { if (!r.ok) { throw new Error(`HTTP ${r.status}`); } return r.json(); }),
       fetch(baseUrl + '&page=2').then(r => r.ok ? r.json() : { results: [] }).catch(() => ({ results: [] }))
     ]);
 

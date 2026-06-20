@@ -7,11 +7,8 @@ const CONTENT_TYPES = [
   { id: 'tv',    name: 'TV Shows' },
 ]
 
-/**
- * Full-screen bottom sheet for filters on mobile.
- * Shown on top of content via a fixed overlay; dismissed by tapping the backdrop
- * or the close button.
- */
+const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
+
 export default function FilterSheet({
   open,
   onClose,
@@ -20,13 +17,15 @@ export default function FilterSheet({
   selectedContentType, onContentTypeChange,
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
+  selectedMaxCertification, onMaxCertificationChange,
   onClearAll,
   onSurpriseMe
 }) {
   if (!open) return null
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
-    selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0
+    selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 ||
+    selectedMaxCertification !== null
 
   return (
     <>
@@ -47,16 +46,16 @@ export default function FilterSheet({
           </button>
         </div>
 
-        <div className="p-4 space-y-5">
+        <div className="p-4 space-y-4">
           {/* Content type */}
           <div>
-            <p className="text-sm font-medium text-gray-300 mb-2">Content Type</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Content Type</p>
+            <div className="flex flex-wrap gap-1.5">
               {CONTENT_TYPES.map(type => (
                 <button
                   key={type.id}
                   onClick={() => onContentTypeChange(type.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     selectedContentType === type.id
                       ? 'bg-purple-600 text-white shadow-lg'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
@@ -68,20 +67,40 @@ export default function FilterSheet({
             </div>
           </div>
 
+          {/* Age Rating */}
+          <div>
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Age Rating (max)</p>
+            <div className="flex flex-wrap gap-1.5">
+              {AGE_RATINGS.map(cert => (
+                <button
+                  key={cert}
+                  onClick={() => onMaxCertificationChange(selectedMaxCertification === cert ? null : cert)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    selectedMaxCertification === cert
+                      ? 'bg-rose-600 text-white shadow-lg'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {cert}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Streaming services */}
           <div>
-            <p className="text-sm font-medium text-gray-300 mb-2">
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
               Streaming Service
               {selectedServices.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-purple-600 rounded text-xs text-white">{selectedServices.length}</span>
+                <span className="ml-2 px-1.5 py-0.5 bg-purple-600 rounded text-[10px] text-white">{selectedServices.length}</span>
               )}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {STREAMING_SERVICES.map(service => (
                 <button
                   key={service.id}
                   onClick={() => onServiceToggle(service.id)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     selectedServices.includes(service.id)
                       ? `${service.color} text-white shadow-lg scale-105`
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
@@ -95,18 +114,18 @@ export default function FilterSheet({
 
           {/* Genres */}
           <div>
-            <p className="text-sm font-medium text-gray-300 mb-2">
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
               Genre
               {selectedGenres.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-purple-600 rounded text-xs text-white">{selectedGenres.length}</span>
+                <span className="ml-2 px-1.5 py-0.5 bg-purple-600 rounded text-[10px] text-white">{selectedGenres.length}</span>
               )}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {GENRES.map(genre => (
                 <button
                   key={genre.id}
                   onClick={() => onGenreToggle(genre.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     selectedGenres.includes(genre.id)
                       ? 'bg-purple-600 text-white shadow-lg scale-105'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
@@ -120,13 +139,13 @@ export default function FilterSheet({
 
           {/* Decade */}
           <div>
-            <p className="text-sm font-medium text-gray-300 mb-2">Decade</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Decade</p>
+            <div className="flex flex-wrap gap-1.5">
               {DECADES.map(({ id, label }) => (
                 <button
                   key={id}
                   onClick={() => onDecadeChange(selectedDecade === id ? null : id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     selectedDecade === id
                       ? 'bg-indigo-600 text-white shadow-lg'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
@@ -140,13 +159,13 @@ export default function FilterSheet({
 
           {/* Min rating */}
           <div>
-            <p className="text-sm font-medium text-gray-300 mb-2">Min Rating</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Min Rating</p>
+            <div className="flex flex-wrap gap-1.5">
               {RATING_OPTIONS.map(({ id, label }) => (
                 <button
                   key={id}
                   onClick={() => onMinRatingChange(id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     selectedMinRating === id
                       ? 'bg-yellow-600 text-white shadow-lg'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
@@ -161,24 +180,24 @@ export default function FilterSheet({
           {/* Surprise Me */}
           <button
             onClick={() => { onSurpriseMe(); onClose() }}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-medium transition-colors"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white text-sm font-medium transition-colors"
           >
             🎲 Surprise Me
           </button>
 
           {/* Clear + Apply */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-1">
             {hasFilters && (
               <button
                 onClick={() => { onClearAll(); onClose() }}
-                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium transition-colors"
+                className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm font-medium transition-colors"
               >
                 Clear All
               </button>
             )}
             <button
               onClick={onClose}
-              className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors"
+              className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm font-medium transition-colors"
             >
               Apply
             </button>

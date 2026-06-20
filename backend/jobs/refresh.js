@@ -408,34 +408,50 @@ async function runInitialRefreshIfNeeded() {
   const { count } = db.prepare('SELECT COUNT(*) AS count FROM content').get();
   if (count === 0) {
     console.log('[refresh] Empty database — running initial populate (async)...');
-    refreshTrending()
-      .then(() => refreshNewReleases())
-      .then(() => refreshStreamingAvailability())
-      .catch(err => console.error('[refresh] Initial populate failed:', err.message));
+    // Each job runs independently so a failure in one doesn't skip the rest
+    ;(async () => {
+      await refreshTrending().catch(err => console.error('[refresh] Initial trending failed:', err.message));
+      await refreshNewReleases().catch(err => console.error('[refresh] Initial new_releases failed:', err.message));
+      await refreshStreamingAvailability().catch(err => console.error('[refresh] Initial streaming failed:', err.message));
+    })();
   } else {
     console.log(`[refresh] Database has ${count} items — skipping initial populate`);
   }
 }
 
 function startCronJobs() {
+  // Per-job lock flags — prevent overlapping executions if a job runs longer than its interval
+  let trendingRunning = false;
+  let newReleasesRunning = false;
+  let streamingRunning = false;
+  let decadeRunning = false;
+
   // Trending: every 6 hours
-  cron.schedule('0 */6 * * *', () => {
-    refreshTrending().catch(err => console.error('[cron] trending:', err.message));
+  cron.schedule('0 */6 * * *', async () => {
+    if (trendingRunning) { console.warn('[cron] trending: skipped — already running'); return; }
+    trendingRunning = true;
+    try { await refreshTrending(); } catch (err) { console.error('[cron] trending:', err.message); } finally { trendingRunning = false; }
   });
 
   // New releases: every 12 hours
-  cron.schedule('0 */12 * * *', () => {
-    refreshNewReleases().catch(err => console.error('[cron] new_releases:', err.message));
+  cron.schedule('0 */12 * * *', async () => {
+    if (newReleasesRunning) { console.warn('[cron] new_releases: skipped — already running'); return; }
+    newReleasesRunning = true;
+    try { await refreshNewReleases(); } catch (err) { console.error('[cron] new_releases:', err.message); } finally { newReleasesRunning = false; }
   });
 
   // Streaming availability: every day at 03:00
-  cron.schedule('0 3 * * *', () => {
-    refreshStreamingAvailability().catch(err => console.error('[cron] streaming_availability:', err.message));
+  cron.schedule('0 3 * * *', async () => {
+    if (streamingRunning) { console.warn('[cron] streaming_availability: skipped — already running'); return; }
+    streamingRunning = true;
+    try { await refreshStreamingAvailability(); } catch (err) { console.error('[cron] streaming_availability:', err.message); } finally { streamingRunning = false; }
   });
 
   // Decade catalogue: every Sunday at 04:00 (after 03:00 streaming sweep)
-  cron.schedule('0 4 * * 0', () => {
-    refreshByDecade().catch(err => console.error('[cron] decade_catalogue:', err.message));
+  cron.schedule('0 4 * * 0', async () => {
+    if (decadeRunning) { console.warn('[cron] decade_catalogue: skipped — already running'); return; }
+    decadeRunning = true;
+    try { await refreshByDecade(); } catch (err) { console.error('[cron] decade_catalogue:', err.message); } finally { decadeRunning = false; }
   });
 
   console.log('[refresh] Cron jobs scheduled (trending 6h, new_releases 12h, streaming 03:00 daily, decade_catalogue Sun 04:00)');

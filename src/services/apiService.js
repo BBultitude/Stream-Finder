@@ -30,8 +30,8 @@ export async function fetchNew({ type, providers } = {}) {
   return data.results || []
 }
 
-export async function fetchBrowse({ page = 1, type, providers, decade, sortBy } = {}) {
-  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers, decade: decade || undefined, sortBy: sortBy !== 'popularity' ? sortBy : undefined })
+export async function fetchBrowse({ page = 1, type, providers, decade, sortBy, maxCertification } = {}) {
+  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers, decade: decade || undefined, sortBy: sortBy !== 'popularity' ? sortBy : undefined, maxCertification: maxCertification || undefined })
   const data = await fetchCached('/api/browse' + qs)
   return data.results || []
 }

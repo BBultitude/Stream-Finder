@@ -52,9 +52,10 @@ router.get('/:type/:id', async (req, res) => {
     const streamingMap = buildStreamingMap(db, [{ id: contentId, media_type: type }]);
     const streaming = streamingMap[`${contentId}_${type}`] || [];
 
-    // Fetch external_ids, recommendations, videos, and credits in parallel
+    // Fetch external_ids, recommendations, videos, and credits in parallel.
+    // All calls have individual fallbacks so a single TMDB failure doesn't 404 the whole detail.
     const [externalIds, recsData, videosData, creditsData] = await Promise.all([
-      tmdbGet(`/${type}/${contentId}/external_ids`, apiKey),
+      tmdbGet(`/${type}/${contentId}/external_ids`, apiKey).catch(() => ({})),
       fetchRecommendations(type, contentId, apiKey),
       tmdbGet(`/${type}/${contentId}/videos`, apiKey).catch(() => ({ results: [] })),
       tmdbGet(`/${type}/${contentId}/credits`, apiKey).catch(() => ({ cast: [] }))
