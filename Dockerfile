@@ -22,10 +22,8 @@ RUN apk add --no-cache nginx supervisor python3 make g++
 # ── Backend: install dependencies ────────────────────────────────────────────
 WORKDIR /app/backend
 COPY backend/package.json .
-RUN npm install --production
-
-# Remove build tools after native compilation to keep image lean
-RUN apk del python3 make g++
+RUN npm install --production \
+    && apk del python3 make g++
 
 # Copy remaining backend source
 COPY backend/ .

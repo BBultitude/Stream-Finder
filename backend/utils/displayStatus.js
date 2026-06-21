@@ -38,7 +38,7 @@ function computeDisplayStatus({ tmdbStatus, releaseDate, hasAuStreaming, mediaTy
     const releaseMs = new Date(releaseDate).getTime();
     const now = Date.now();
 
-    if (isNaN(releaseMs)) {
+    if (Number.isNaN(releaseMs)) {
       return 'coming_soon';
     }
 

@@ -1,5 +1,7 @@
+import PropTypes from 'prop-types'
 import { Film, Tv, Bookmark } from './icons'
 import { GENRES } from './FilterBar'
+import { itemShape } from '../propTypes'
 
 const GENRE_MAP = Object.fromEntries(GENRES.map(g => [g.id, g.name]))
 
@@ -53,8 +55,8 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
             <div>
               <p className="text-xs text-gray-400 mb-2">Available on:</p>
               <div className="flex flex-wrap gap-1">
-                {item.streaming.slice(0, 3).map((s, i) =>
-                  s.logo && <img key={i} src={s.logo} alt={s.name} title={s.name} className="w-8 h-8 rounded object-cover" loading="lazy" />
+                {item.streaming.slice(0, 3).map(s =>
+                  s.logo && <img key={s.name} src={s.logo} alt={s.name} title={s.name} className="w-8 h-8 rounded object-cover" loading="lazy" />
                 )}
                 {item.streaming.length > 3 && (
                   <span className="text-xs text-gray-400 self-center">+{item.streaming.length - 3}</span>
@@ -152,8 +154,8 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
           ? <div>
               <p className="text-xs text-gray-400 mb-2">Available on:</p>
               <div className="flex flex-wrap gap-1">
-                {item.streaming.slice(0, 3).map((s, i) =>
-                  s.logo && <img key={i} src={s.logo} alt={s.name} title={s.name} className="w-8 h-8 rounded object-cover" />
+                {item.streaming.slice(0, 3).map(s =>
+                  s.logo && <img key={s.name} src={s.logo} alt={s.name} title={s.name} className="w-8 h-8 rounded object-cover" />
                 )}
                 {item.streaming.length > 3 && (
                   <span className="text-xs text-gray-400 self-center">+{item.streaming.length - 3}</span>
@@ -167,4 +169,13 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
       </div>
     </div>
   )
+}
+
+ContentCard.propTypes = {
+  item: itemShape.isRequired,
+  onClick: PropTypes.func.isRequired,
+  variant: PropTypes.oneOf(['default', 'compact']),
+  watchlistKeys: PropTypes.instanceOf(Set),
+  onWatchlistToggle: PropTypes.func,
+  priority: PropTypes.bool,
 }

@@ -1,4 +1,6 @@
+import PropTypes from 'prop-types'
 import { Film } from './icons'
+import { itemShape } from '../propTypes'
 
 export default function Top10List({ items, onItemClick }) {
   if (items.length === 0) {
@@ -39,8 +41,8 @@ export default function Top10List({ items, onItemClick }) {
           </div>
           {item.streaming && item.streaming.length > 0 && (
             <div className="flex gap-1 flex-shrink-0">
-              {item.streaming.slice(0, 3).map((s, i) =>
-                s.logo && <img key={i} src={s.logo} alt={s.name} title={s.name} className="w-7 h-7 rounded object-cover" />
+              {item.streaming.slice(0, 3).map(s =>
+                s.logo && <img key={s.name} src={s.logo} alt={s.name} title={s.name} className="w-7 h-7 rounded object-cover" />
               )}
             </div>
           )}
@@ -48,4 +50,9 @@ export default function Top10List({ items, onItemClick }) {
       ))}
     </div>
   )
+}
+
+Top10List.propTypes = {
+  items: PropTypes.arrayOf(itemShape).isRequired,
+  onItemClick: PropTypes.func.isRequired,
 }

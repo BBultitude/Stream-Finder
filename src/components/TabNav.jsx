@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import { TrendingUp, Sparkles, Grid, Bookmark, Calendar } from './icons'
 
 export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
@@ -80,4 +81,10 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
       </button>
     </div>
   )
+}
+
+TabNav.propTypes = {
+  activeTab: PropTypes.string.isRequired,
+  onTabChange: PropTypes.func.isRequired,
+  watchlistCount: PropTypes.number,
 }

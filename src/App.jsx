@@ -237,9 +237,10 @@ export default function App() {
   }
 
   const handleClearWatchlist = async () => {
-    if (!window.confirm(`Clear all ${watchlist.length} item${watchlist.length !== 1 ? 's' : ''} from your watchlist?`)) return
-    await clearWatchlist().catch(() => {})
-    setWatchlist([])
+    if (window.confirm(`Clear all ${watchlist.length} item${watchlist.length !== 1 ? 's' : ''} from your watchlist?`)) {
+      await clearWatchlist().catch(() => {})
+      setWatchlist([])
+    }
   }
 
   const toggleService = (serviceId) => {

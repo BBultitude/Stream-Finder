@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import { TrendingUp, Sparkles, Grid, Search, Bookmark, Calendar } from './icons'
 
 const TABS = [
@@ -48,4 +49,11 @@ export default function BottomNav({ activeTab, onTabChange, onSearchFocus, watch
       })}
     </nav>
   )
+}
+
+BottomNav.propTypes = {
+  activeTab: PropTypes.string.isRequired,
+  onTabChange: PropTypes.func.isRequired,
+  onSearchFocus: PropTypes.func.isRequired,
+  watchlistCount: PropTypes.number,
 }

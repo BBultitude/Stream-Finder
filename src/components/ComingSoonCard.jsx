@@ -1,4 +1,6 @@
+import PropTypes from 'prop-types'
 import { Film, Tv, Bookmark } from './icons'
+import { itemShape } from '../propTypes'
 
 function formatReleaseDate(item) {
   const dateStr = item.release_date || item.first_air_date
@@ -70,4 +72,11 @@ export default function ComingSoonCard({ item, onClick, watchlistKeys, onWatchli
       </div>
     </div>
   )
+}
+
+ComingSoonCard.propTypes = {
+  item: itemShape.isRequired,
+  onClick: PropTypes.func.isRequired,
+  watchlistKeys: PropTypes.instanceOf(Set),
+  onWatchlistToggle: PropTypes.func,
 }

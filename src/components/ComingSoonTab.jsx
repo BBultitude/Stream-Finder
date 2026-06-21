@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import PropTypes from 'prop-types'
 import ComingSoonCard from './ComingSoonCard'
 import { Calendar } from './icons'
+import { itemShape } from '../propTypes'
 
 const VIEWS = [
   { id: 'streaming', label: '🚀 Streaming', status: 'coming_soon' },
@@ -61,4 +63,11 @@ export default function ComingSoonTab({ items, watchlistKeys, onItemClick, onWat
       )}
     </div>
   )
+}
+
+ComingSoonTab.propTypes = {
+  items: PropTypes.arrayOf(itemShape).isRequired,
+  watchlistKeys: PropTypes.instanceOf(Set),
+  onItemClick: PropTypes.func.isRequired,
+  onWatchlistToggle: PropTypes.func,
 }

@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import { X } from './icons'
 import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS } from './FilterBar'
 
@@ -206,4 +207,23 @@ export default function FilterSheet({
       </div>
     </>
   )
+}
+
+FilterSheet.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  selectedServices: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onServiceToggle: PropTypes.func.isRequired,
+  selectedGenres: PropTypes.arrayOf(PropTypes.number).isRequired,
+  onGenreToggle: PropTypes.func.isRequired,
+  selectedContentType: PropTypes.string.isRequired,
+  onContentTypeChange: PropTypes.func.isRequired,
+  selectedDecade: PropTypes.number,
+  onDecadeChange: PropTypes.func.isRequired,
+  selectedMinRating: PropTypes.number.isRequired,
+  onMinRatingChange: PropTypes.func.isRequired,
+  selectedMaxCertification: PropTypes.string,
+  onMaxCertificationChange: PropTypes.func.isRequired,
+  onClearAll: PropTypes.func.isRequired,
+  onSurpriseMe: PropTypes.func.isRequired,
 }

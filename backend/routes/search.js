@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
 
   const { query, providers } = req.query;
 
-  if (!query || !query.trim()) {
+  if (!query?.trim()) {
     return res.json({ results: [] });
   }
 

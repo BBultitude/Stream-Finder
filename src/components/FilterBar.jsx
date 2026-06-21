@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PropTypes from 'prop-types'
 import { ChevronDown, X } from './icons'
 
 export const STREAMING_SERVICES = [
@@ -236,4 +237,22 @@ export default function FilterBar({
       </div>
     </div>
   )
+}
+
+FilterBar.propTypes = {
+  selectedServices: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onServiceToggle: PropTypes.func.isRequired,
+  selectedGenres: PropTypes.arrayOf(PropTypes.number).isRequired,
+  onGenreToggle: PropTypes.func.isRequired,
+  selectedContentType: PropTypes.string.isRequired,
+  onContentTypeChange: PropTypes.func.isRequired,
+  selectedDecade: PropTypes.number,
+  onDecadeChange: PropTypes.func.isRequired,
+  selectedMinRating: PropTypes.number.isRequired,
+  onMinRatingChange: PropTypes.func.isRequired,
+  onClearAll: PropTypes.func.isRequired,
+  onSurpriseMe: PropTypes.func.isRequired,
+  activeTab: PropTypes.string,
+  sortBy: PropTypes.string,
+  onSortChange: PropTypes.func,
 }

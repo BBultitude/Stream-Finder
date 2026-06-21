@@ -91,7 +91,7 @@ function initSchema() {
     'ALTER TABLE content ADD COLUMN number_of_episodes INTEGER',
     'ALTER TABLE content ADD COLUMN certification TEXT',
   ]) {
-    try { db.exec(col); } catch (_) { /* column already exists */ }
+    try { db.exec(col); } catch (err) { console.warn('[db] migration skip:', err.message); }
   }
 }
 

@@ -22,7 +22,7 @@ const DETAIL_TTL_MS = 60 * 60 * 1000;
  */
 router.get('/:type/:id', async (req, res) => {
   const { type, id } = req.params;
-  const contentId = parseInt(id, 10);
+  const contentId = Number.parseInt(id, 10);
 
   if (!['movie', 'tv'].includes(type) || !Number.isInteger(contentId) || contentId <= 0) {
     return res.status(400).json({ error: 'Invalid type or id' });
@@ -55,10 +55,10 @@ router.get('/:type/:id', async (req, res) => {
     // Fetch external_ids, recommendations, videos, and credits in parallel.
     // All calls have individual fallbacks so a single TMDB failure doesn't 404 the whole detail.
     const [externalIds, recsData, videosData, creditsData] = await Promise.all([
-      tmdbGet(`/${type}/${contentId}/external_ids`, apiKey).catch(() => ({})),
+      tmdbGet(`/${type}/${contentId}/external_ids`, apiKey).catch(err => { console.warn('[detail] external_ids fallback:', err.message); return {}; }),
       fetchRecommendations(type, contentId, apiKey),
-      tmdbGet(`/${type}/${contentId}/videos`, apiKey).catch(() => ({ results: [] })),
-      tmdbGet(`/${type}/${contentId}/credits`, apiKey).catch(() => ({ cast: [] }))
+      tmdbGet(`/${type}/${contentId}/videos`, apiKey).catch(err => { console.warn('[detail] videos fallback:', err.message); return { results: [] }; }),
+      tmdbGet(`/${type}/${contentId}/credits`, apiKey).catch(err => { console.warn('[detail] credits fallback:', err.message); return { cast: [] }; })
     ]);
 
     // Hybrid recommendations: TMDB recs (streaming-only from DB) + local genre-similarity,
@@ -171,14 +171,15 @@ async function fetchRecommendations(type, id, apiKey) {
     if (data.results && data.results.length > 0) {
       return data.results.slice(0, 12).map(r => ({ ...r, media_type: r.media_type || type }));
     }
-  } catch {
-    // fall through to similar
+  } catch (err) {
+    console.warn('[detail] recommendations fallback to similar:', err.message);
   }
 
   try {
     const data = await tmdbGet(`/${type}/${id}/similar?page=1`, apiKey);
     return (data.results || []).slice(0, 12).map(r => ({ ...r, media_type: type }));
-  } catch {
+  } catch (err) {
+    console.warn('[detail] similar fallback empty:', err.message);
     return [];
   }
 }

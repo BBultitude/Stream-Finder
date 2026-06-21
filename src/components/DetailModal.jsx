@@ -1,6 +1,8 @@
+import PropTypes from 'prop-types'
 import { ArrowLeft, Film, Tv, PlayIcon, Bookmark, Person } from './icons'
 import ContentCard from './ContentCard'
 import { SkeletonCompactCard } from './SkeletonCard'
+import { itemShape } from '../propTypes'
 
 function formatRuntime(minutes) {
   if (!minutes) return null
@@ -78,8 +80,8 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                   <div className="mb-6">
                     <h3 className="text-sm text-gray-300 mb-2">Available on:</h3>
                     <div className="flex flex-wrap gap-2">
-                      {item.streaming.map((service, idx) => (
-                        <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
+                      {item.streaming.map(service => (
+                        <div key={service.name} className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
                           {service.logo && <img src={service.logo} alt={service.name} className="w-6 h-6 rounded" />}
                           <span className="text-sm text-white">{service.name}</span>
                           {service.isNew && (
@@ -220,4 +222,14 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
       </div>
     </div>
   )
+}
+
+DetailModal.propTypes = {
+  item: itemShape.isRequired,
+  similarContent: PropTypes.arrayOf(itemShape),
+  loadingDetail: PropTypes.bool,
+  onClose: PropTypes.func.isRequired,
+  onSimilarClick: PropTypes.func,
+  isInWatchlist: PropTypes.bool,
+  onWatchlistToggle: PropTypes.func,
 }

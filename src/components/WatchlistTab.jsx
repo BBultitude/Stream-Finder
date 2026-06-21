@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import PropTypes from 'prop-types'
 import ContentCard from './ContentCard'
 import { Bookmark } from './icons'
 import { fetchDetail } from '../services/apiService'
 import { updateWatchlistItem } from '../services/watchlistService'
+import { itemShape } from '../propTypes'
 
 export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatchlistToggle, onClearAll }) {
   // Initialise display from stored items; refreshed in background on mount
@@ -75,4 +77,12 @@ export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatc
       </div>
     </>
   )
+}
+
+WatchlistTab.propTypes = {
+  items: PropTypes.arrayOf(itemShape).isRequired,
+  watchlistKeys: PropTypes.instanceOf(Set),
+  onItemClick: PropTypes.func.isRequired,
+  onWatchlistToggle: PropTypes.func.isRequired,
+  onClearAll: PropTypes.func.isRequired,
 }
