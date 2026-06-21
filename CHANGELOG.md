@@ -20,7 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `backend/routes/new.js`: added `AND sa.type = 'flatrate'` to JOIN conditions — rent/buy-only content no longer appears in What's New without a "New on Platform" badge
 - `backend/routes/new.js`: replaced `SELECT DISTINCT ... ORDER BY sa.first_seen DESC` with `GROUP BY c.id, c.media_type ORDER BY MAX(sa.first_seen) DESC` — resolves ambiguous SQLite ordering when content has multiple streaming availability rows
-- `backend/routes/languages.js`: renamed `COUNT(*) AS count` alias to `item_count` — avoids SQLite aggregate function name ambiguity on Alpine Linux; improved error logging to `err.stack`
+- `backend/routes/languages.js`: added `PRAGMA table_info` guard before querying `original_language` — prevents "no such column" 500 on DBs where the column migration had not yet applied; catch block now returns 200 (not 500) so the frontend never errors on this endpoint
+- `backend/db.js`: added `original_language TEXT` directly to the `CREATE TABLE IF NOT EXISTS content` schema (belt-and-suspenders for fresh DBs); migration loop now logs each column it applies so startup state is visible in Docker logs
+- `backend/jobs/refresh.js`: `runInitialRefreshIfNeeded` now detects streaming items with NULL `original_language` and kicks off a background `refreshTrending()` to back-fill the column immediately after deployment — language filter populated within seconds rather than waiting up to 6 hours for the next cron tick
 
 ---
 

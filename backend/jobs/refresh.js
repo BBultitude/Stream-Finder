@@ -418,6 +418,19 @@ async function runInitialRefreshIfNeeded() {
     })();
   } else {
     console.log(`[refresh] Database has ${count} items — skipping initial populate`);
+    // Back-fill original_language for existing rows if the column is present but unpopulated
+    const cols = db.prepare('PRAGMA table_info(content)').all();
+    if (cols.some(c => c.name === 'original_language')) {
+      const { nullCount } = db.prepare(
+        'SELECT COUNT(*) AS nullCount FROM content WHERE original_language IS NULL AND display_status = "streaming"'
+      ).get();
+      if (nullCount > 0) {
+        console.log(`[refresh] ${nullCount} streaming items missing original_language — queuing background trending refresh`);
+        ;(async () => {
+          await refreshTrending().catch(err => console.error('[refresh] Language backfill failed:', err.message));
+        })();
+      }
+    }
   }
 }
 

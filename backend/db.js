@@ -34,6 +34,7 @@ function initSchema() {
       number_of_seasons INTEGER,
       number_of_episodes INTEGER,
       certification TEXT,
+      original_language TEXT,
       PRIMARY KEY (id, media_type)
     );
 
@@ -84,7 +85,7 @@ function initSchema() {
       ON streaming_availability(provider_id, region);
   `);
 
-  // Additive column migrations — safe to run every startup
+  // Additive column migrations — safe to run every startup; duplicate-column errors are expected and ignored
   for (const col of [
     'ALTER TABLE content ADD COLUMN runtime INTEGER',
     'ALTER TABLE content ADD COLUMN number_of_seasons INTEGER',
@@ -92,7 +93,10 @@ function initSchema() {
     'ALTER TABLE content ADD COLUMN certification TEXT',
     'ALTER TABLE content ADD COLUMN original_language TEXT',
   ]) {
-    try { db.exec(col); } catch (err) { console.warn('[db] migration skip:', err.message); }
+    try {
+      db.exec(col);
+      console.log('[db] migration applied:', col.split('COLUMN ')[1].split(' ')[0]);
+    } catch (_err) { /* duplicate column = already applied */ }
   }
 }
 
