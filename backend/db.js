@@ -90,6 +90,7 @@ function initSchema() {
     'ALTER TABLE content ADD COLUMN number_of_seasons INTEGER',
     'ALTER TABLE content ADD COLUMN number_of_episodes INTEGER',
     'ALTER TABLE content ADD COLUMN certification TEXT',
+    'ALTER TABLE content ADD COLUMN original_language TEXT',
   ]) {
     try { db.exec(col); } catch (err) { console.warn('[db] migration skip:', err.message); }
   }

@@ -3,7 +3,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { certsUpTo } = require('../utils/certOrder');
+const { certsUpTo, buildExcludeLanguagesClause } = require('../utils/certOrder');
 
 const router = Router();
 
@@ -13,26 +13,29 @@ const PAGE_SIZE = 40;
  * GET /api/browse
  * Paginated browse of streaming content sorted by popularity.
  * Query params:
- *   page      — integer page number (default 1)
- *   type      — 'movie' | 'tv'  (omit for all)
- *   providers — comma-separated TMDB provider IDs to filter by
+ *   page             — integer page number (default 1)
+ *   type             — 'movie' | 'tv'  (omit for all)
+ *   providers        — comma-separated TMDB provider IDs to filter by
  *   decade           — start year of decade, e.g. 1990 filters 1990–1999
  *   sortBy           — 'popularity' | 'vote_average' | 'release_date' (default popularity)
  *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
+ *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, decade, sortBy, maxCertification } = req.query;
+    const { type, providers, decade, sortBy, maxCertification, excludeLanguages } = req.query;
 
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const offset = (page - 1) * PAGE_SIZE;
 
     const providerIds = parseProviderIds(providers);
+    const excludeLangs = excludeLanguages ? excludeLanguages.split(',').filter(Boolean) : [];
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const decadeClause = buildDecadeClause(decade, params);
     const certClause = buildCertClause(maxCertification, params);
+    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
     const orderClause = buildOrderClause(sortBy);
 
     let rows;
@@ -52,6 +55,7 @@ router.get('/', (req, res) => {
         ${typeClause}
         ${decadeClause}
         ${certClause}
+        ${langClause}
         ${orderClause}
         LIMIT ? OFFSET ?
       `).all(...providerIds, ...params, PAGE_SIZE, offset);
@@ -65,6 +69,7 @@ router.get('/', (req, res) => {
         ${typeClause}
         ${decadeClause}
         ${certClause}
+        ${langClause}
         ${orderClause}
         LIMIT ? OFFSET ?
       `).all(...params, PAGE_SIZE, offset);

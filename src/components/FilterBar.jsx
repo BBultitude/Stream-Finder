@@ -57,12 +57,22 @@ const SORT_OPTIONS = [
   { id: 'release_date', label: 'Newest First' },
 ]
 
+const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
+
+const EXCLUDE_LANGUAGES = [
+  { code: 'hi', label: 'Bollywood (Hindi)' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'ja', label: 'Anime (Japanese)' },
+]
+
 export default function FilterBar({
   selectedServices, onServiceToggle,
   selectedGenres, onGenreToggle,
   selectedContentType, onContentTypeChange,
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
+  selectedMaxCertification, onMaxCertificationChange,
+  selectedExcludeLanguages, onExcludeLanguageToggle,
   onClearAll,
   onSurpriseMe,
   activeTab,
@@ -73,7 +83,8 @@ export default function FilterBar({
   const [showGenreFilters, setShowGenreFilters]     = useState(false)
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
-    selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0
+    selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 ||
+    selectedMaxCertification !== null || selectedExcludeLanguages.length > 0
 
   return (
     <div className="max-w-3xl mx-auto mb-8 space-y-4">
@@ -197,6 +208,42 @@ export default function FilterBar({
         ))}
       </div>
 
+      {/* Age rating */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-sm text-gray-300">Age Rating (max):</span>
+        {AGE_RATINGS.map(cert => (
+          <button
+            key={cert}
+            onClick={() => onMaxCertificationChange(selectedMaxCertification === cert ? null : cert)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              selectedMaxCertification === cert
+                ? 'bg-rose-600 text-white shadow-lg'
+                : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+            }`}
+          >
+            {cert}
+          </button>
+        ))}
+      </div>
+
+      {/* Language exclusion */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-sm text-gray-300">Exclude:</span>
+        {EXCLUDE_LANGUAGES.map(lang => (
+          <button
+            key={lang.code}
+            onClick={() => onExcludeLanguageToggle(lang.code)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              selectedExcludeLanguages.includes(lang.code)
+                ? 'bg-rose-700 text-white shadow-lg'
+                : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+            }`}
+          >
+            {lang.label}
+          </button>
+        ))}
+      </div>
+
       {/* Sort — Browse tab only */}
       {activeTab === 'browse' && (
         <div className="flex flex-wrap gap-2 items-center">
@@ -250,6 +297,10 @@ FilterBar.propTypes = {
   onDecadeChange: PropTypes.func.isRequired,
   selectedMinRating: PropTypes.number.isRequired,
   onMinRatingChange: PropTypes.func.isRequired,
+  selectedMaxCertification: PropTypes.string,
+  onMaxCertificationChange: PropTypes.func.isRequired,
+  selectedExcludeLanguages: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onExcludeLanguageToggle: PropTypes.func.isRequired,
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
   activeTab: PropTypes.string,

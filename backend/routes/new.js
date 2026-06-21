@@ -3,6 +3,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
+const { certsUpTo, buildExcludeLanguagesClause } = require('../utils/certOrder');
 
 const router = Router();
 
@@ -10,21 +11,26 @@ const router = Router();
  * GET /api/new
  * Returns content from the last 6 months, sorted by release date descending.
  * Query params:
- *   type      — 'movie' | 'tv'  (omit for all)
- *   providers — comma-separated TMDB provider IDs to filter by
+ *   type             — 'movie' | 'tv'  (omit for all)
+ *   providers        — comma-separated TMDB provider IDs to filter by
+ *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
+ *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers } = req.query;
+    const { type, providers, maxCertification, excludeLanguages } = req.query;
 
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - 6);
     const cutoffStr = cutoff.toISOString().split('T')[0];
 
     const providerIds = parseProviderIds(providers);
+    const excludeLangs = parseLanguages(excludeLanguages);
     const params = [];
     const typeClause = buildTypeClause(type, params);
+    const certClause = buildCertClause(maxCertification, params);
+    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
 
     let rows;
     if (providerIds.length > 0) {
@@ -42,6 +48,8 @@ router.get('/', (req, res) => {
         WHERE c.release_date >= ?
           AND c.display_status = 'streaming'
           ${typeClause}
+          ${certClause}
+          ${langClause}
         ORDER BY c.release_date DESC
         LIMIT 100
       `).all(...providerIds, cutoffStr, ...params);
@@ -54,6 +62,8 @@ router.get('/', (req, res) => {
         WHERE release_date >= ?
           AND display_status = 'streaming'
           ${typeClause}
+          ${certClause}
+          ${langClause}
         ORDER BY release_date DESC
         LIMIT 100
       `).all(cutoffStr, ...params);
@@ -71,12 +81,26 @@ function parseProviderIds(str) {
   return str.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
 }
 
+function parseLanguages(str) {
+  if (!str) return [];
+  return str.split(',').filter(Boolean);
+}
+
 function buildTypeClause(type, params) {
   if (type === 'movie' || type === 'tv') {
     params.push(type);
     return 'AND media_type = ?';
   }
   return '';
+}
+
+function buildCertClause(maxCertification, params) {
+  if (!maxCertification) return '';
+  const certs = certsUpTo(maxCertification);
+  if (!certs) return '';
+  certs.forEach(c => params.push(c));
+  const ph = certs.map(() => '?').join(',');
+  return `AND certification IN (${ph})`;
 }
 
 module.exports = router;

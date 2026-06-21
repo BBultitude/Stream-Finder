@@ -3,23 +3,27 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
+const { certsUpTo, buildExcludeLanguagesClause } = require('../utils/certOrder');
 
 const router = Router();
 
 /**
  * GET /api/random
  * Returns a single random streaming title matching the active filters.
- * Query params: type, providers, decade (same as /api/browse)
+ * Query params: type, providers, decade, maxCertification, excludeLanguages
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, decade } = req.query;
+    const { type, providers, decade, maxCertification, excludeLanguages } = req.query;
 
     const providerIds = parseProviderIds(providers);
+    const excludeLangs = excludeLanguages ? excludeLanguages.split(',').filter(Boolean) : [];
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const decadeClause = buildDecadeClause(decade, params);
+    const certClause = buildCertClause(maxCertification, params);
+    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
 
     let rows;
     if (providerIds.length > 0) {
@@ -37,6 +41,8 @@ router.get('/', (req, res) => {
         WHERE c.display_status = 'streaming'
         ${typeClause}
         ${decadeClause}
+        ${certClause}
+        ${langClause}
         ORDER BY RANDOM()
         LIMIT 1
       `).all(...providerIds, ...params);
@@ -49,6 +55,8 @@ router.get('/', (req, res) => {
         WHERE display_status = 'streaming'
         ${typeClause}
         ${decadeClause}
+        ${certClause}
+        ${langClause}
         ORDER BY RANDOM()
         LIMIT 1
       `).all(...params);
@@ -84,6 +92,15 @@ function buildDecadeClause(decade, params) {
   if (!decade || Number.isNaN(d) || d < 1900 || d > 2090) return '';
   params.push(d, d + 9);
   return 'AND CAST(SUBSTR(release_date, 1, 4) AS INTEGER) BETWEEN ? AND ?';
+}
+
+function buildCertClause(maxCertification, params) {
+  if (!maxCertification) return '';
+  const certs = certsUpTo(maxCertification);
+  if (!certs) return '';
+  certs.forEach(c => params.push(c));
+  const ph = certs.map(() => '?').join(',');
+  return `AND certification IN (${ph})`;
 }
 
 module.exports = router;

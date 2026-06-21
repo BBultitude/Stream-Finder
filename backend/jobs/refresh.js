@@ -72,8 +72,8 @@ function upsertContent(db, item, now) {
   db.prepare(`
     INSERT OR IGNORE INTO content
       (id, media_type, title, overview, poster_path, release_date,
-       vote_average, popularity, display_status, last_updated)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'coming_soon', ?)
+       vote_average, popularity, display_status, last_updated, original_language)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'coming_soon', ?, ?)
   `).run(
     item.id,
     item.media_type,
@@ -83,7 +83,8 @@ function upsertContent(db, item, now) {
     releaseDate,
     item.vote_average || 0,
     item.popularity || 0,
-    now
+    now,
+    item.original_language || null
   );
 
   // Always update mutable fields (popularity/vote_average drift over time)

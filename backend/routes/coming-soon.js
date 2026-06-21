@@ -3,6 +3,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
+const { buildExcludeLanguagesClause } = require('../utils/certOrder');
 
 const router = Router();
 
@@ -20,40 +21,52 @@ const COLS = `id, media_type, title, overview, poster_path, release_date, vote_a
  *   2. Coming soon (known date) — sorted by release_date ASC (soonest first)
  *   3. Coming soon (no date) — sorted by popularity DESC, stale entries excluded
  * Query params:
- *   type — 'movie' | 'tv'  (omit for all)
+ *   type             — 'movie' | 'tv'  (omit for all)
+ *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type } = req.query;
+    const { type, excludeLanguages } = req.query;
 
-    const params = [];
-    const typeClause = (type === 'movie' || type === 'tv')
-      ? (params.push(type), 'AND media_type = ?')
-      : '';
+    const excludeLangs = excludeLanguages ? excludeLanguages.split(',').filter(Boolean) : [];
+
+    // Build shared type + language params — each query uses its own params array
+    // because the noDate query prepends staleCutoff before the type param.
+    const buildParams = () => {
+      const p = [];
+      const langClause = buildExcludeLanguagesClause(excludeLangs, p);
+      const typeClause = (type === 'movie' || type === 'tv')
+        ? (p.push(type), 'AND media_type = ?')
+        : '';
+      return { p, typeClause, langClause };
+    };
 
     const staleCutoff = Date.now() - STALE_MS;
 
+    const c1 = buildParams();
     const inCinemas = db.prepare(`
       SELECT ${COLS} FROM content
-      WHERE display_status = 'in_cinemas' ${typeClause}
+      WHERE display_status = 'in_cinemas' ${c1.langClause} ${c1.typeClause}
       ORDER BY release_date DESC
-    `).all(...params);
+    `).all(...c1.p);
 
+    const c2 = buildParams();
     const withDate = db.prepare(`
       SELECT ${COLS} FROM content
       WHERE display_status = 'coming_soon'
-        AND release_date IS NOT NULL ${typeClause}
+        AND release_date IS NOT NULL ${c2.langClause} ${c2.typeClause}
       ORDER BY release_date ASC
-    `).all(...params);
+    `).all(...c2.p);
 
+    const c3 = buildParams();
     const noDate = db.prepare(`
       SELECT ${COLS} FROM content
       WHERE display_status = 'coming_soon'
         AND release_date IS NULL
-        AND last_updated >= ? ${typeClause}
+        AND last_updated >= ? ${c3.langClause} ${c3.typeClause}
       ORDER BY popularity DESC
-    `).all(staleCutoff, ...params);
+    `).all(staleCutoff, ...c3.p);
 
     const rows = [...inCinemas, ...withDate, ...noDate];
     res.json({ results: attachStreamingAndGenres(db, rows) });

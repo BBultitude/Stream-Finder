@@ -5,8 +5,8 @@ import { Calendar } from './icons'
 import { itemShape } from '../propTypes'
 
 const VIEWS = [
-  { id: 'streaming', label: '🚀 Streaming', status: 'coming_soon' },
-  { id: 'cinemas',   label: '🎬 Cinemas',   status: 'in_cinemas'  },
+  { id: 'streaming', label: '🚀 Coming Soon', status: 'coming_soon' },
+  { id: 'cinemas',   label: '🎬 In Cinemas',  status: 'in_cinemas'  },
 ]
 
 export default function ComingSoonTab({ items, watchlistKeys, onItemClick, onWatchlistToggle }) {

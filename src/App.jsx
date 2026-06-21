@@ -79,6 +79,7 @@ export default function App() {
   const [selectedDecade, setSelectedDecade]               = useState(null)
   const [selectedMinRating, setSelectedMinRating]         = useState(0)
   const [selectedMaxCertification, setSelectedMaxCertification] = useState(null)
+  const [selectedExcludeLanguages, setSelectedExcludeLanguages] = useState([])
   const [sortBy, setSortBy]                               = useState('popularity')
   const [activeTab, setActiveTab]             = useState('trending')
   const [selectedItem, setSelectedItem]       = useState(null)
@@ -130,7 +131,7 @@ export default function App() {
 
   const loadComingSoon = async () => {
     try {
-      const items = await fetchComingSoon({ type: selectedContentType })
+      const items = await fetchComingSoon({ type: selectedContentType, excludeLanguages: selectedExcludeLanguages })
       setComingSoonContent(items)
     } catch {
       setComingSoonContent([])
@@ -140,7 +141,7 @@ export default function App() {
   const loadTrendingContent = async () => {
     setLoading(true)
     try {
-      const items = await fetchTrending({ type: selectedContentType, providers: getProviderParam() })
+      const items = await fetchTrending({ type: selectedContentType, providers: getProviderParam(), maxCertification: selectedMaxCertification, excludeLanguages: selectedExcludeLanguages })
       setTrendingContent(deduplicateById(items))
     } catch {
       setTrendingContent([])
@@ -151,7 +152,7 @@ export default function App() {
   const loadNewReleases = async () => {
     setLoading(true)
     try {
-      const items = await fetchNew({ type: selectedContentType, providers: getProviderParam() })
+      const items = await fetchNew({ type: selectedContentType, providers: getProviderParam(), maxCertification: selectedMaxCertification, excludeLanguages: selectedExcludeLanguages })
       setNewReleases(deduplicateById(items))
     } catch {
       setNewReleases([])
@@ -162,7 +163,7 @@ export default function App() {
   const loadBrowseAll = async (page = 1) => {
     setLoading(true)
     try {
-      const items = await fetchBrowse({ page, type: selectedContentType, providers: getProviderParam(), decade: selectedDecade, sortBy, maxCertification: selectedMaxCertification })
+      const items = await fetchBrowse({ page, type: selectedContentType, providers: getProviderParam(), decade: selectedDecade, sortBy, maxCertification: selectedMaxCertification, excludeLanguages: selectedExcludeLanguages })
       const deduped = deduplicateById(items)
       if (page === 1) {
         setBrowseAll(deduped)
@@ -208,11 +209,22 @@ export default function App() {
     loadBrowseAll(1)
   }, [sortBy])
 
-  // Reload browse when age rating ceiling changes
+  // Reload all content tabs when age rating ceiling changes
   useEffect(() => {
     setBrowseAllPage(1)
+    loadTrendingContent()
+    loadNewReleases()
     loadBrowseAll(1)
   }, [selectedMaxCertification])
+
+  // Reload all content tabs when language exclusions change
+  useEffect(() => {
+    setBrowseAllPage(1)
+    loadTrendingContent()
+    loadNewReleases()
+    loadBrowseAll(1)
+    loadComingSoon()
+  }, [selectedExcludeLanguages])
 
   // Debounced search
   useEffect(() => {
@@ -298,9 +310,15 @@ export default function App() {
     )
   }
 
+  const toggleExcludeLanguage = (code) => {
+    setSelectedExcludeLanguages(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    )
+  }
+
   const handleSurpriseMe = async () => {
     try {
-      const item = await fetchRandom({ type: selectedContentType, providers: getProviderParam(), decade: selectedDecade })
+      const item = await fetchRandom({ type: selectedContentType, providers: getProviderParam(), decade: selectedDecade, maxCertification: selectedMaxCertification, excludeLanguages: selectedExcludeLanguages })
       if (item) handleItemClick(item)
     } catch {
       // best-effort; silently ignore
@@ -324,6 +342,7 @@ export default function App() {
     setSelectedDecade(null)
     setSelectedMinRating(0)
     setSelectedMaxCertification(null)
+    setSelectedExcludeLanguages([])
   }
 
   if (selectedItem) {
@@ -366,6 +385,8 @@ export default function App() {
         onMinRatingChange={setSelectedMinRating}
         selectedMaxCertification={selectedMaxCertification}
         onMaxCertificationChange={setSelectedMaxCertification}
+        selectedExcludeLanguages={selectedExcludeLanguages}
+        onExcludeLanguageToggle={toggleExcludeLanguage}
         onClearAll={handleClearFilters}
         onSurpriseMe={handleSurpriseMe}
       />
@@ -436,13 +457,14 @@ export default function App() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
               </svg>
-              {(selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 || selectedMaxCertification !== null) && (
+              {(selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 || selectedMaxCertification !== null || selectedExcludeLanguages.length > 0) && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 rounded-full text-[10px] flex items-center justify-center text-white">
                   {selectedServices.length + selectedGenres.length +
                     (selectedContentType === 'all' ? 0 : 1) +
                     (selectedDecade === null ? 0 : 1) +
                     (selectedMinRating > 0 ? 1 : 0) +
-                    (selectedMaxCertification === null ? 0 : 1)}
+                    (selectedMaxCertification === null ? 0 : 1) +
+                    selectedExcludeLanguages.length}
                 </span>
               )}
             </button>
@@ -464,6 +486,8 @@ export default function App() {
             onMinRatingChange={setSelectedMinRating}
             selectedMaxCertification={selectedMaxCertification}
             onMaxCertificationChange={setSelectedMaxCertification}
+            selectedExcludeLanguages={selectedExcludeLanguages}
+            onExcludeLanguageToggle={toggleExcludeLanguage}
             onClearAll={handleClearFilters}
             onSurpriseMe={handleSurpriseMe}
             activeTab={activeTab}

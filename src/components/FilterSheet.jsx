@@ -10,6 +10,12 @@ const CONTENT_TYPES = [
 
 const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
 
+const EXCLUDE_LANGUAGES = [
+  { code: 'hi', label: 'Bollywood (Hindi)' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'ja', label: 'Anime (Japanese)' },
+]
+
 export default function FilterSheet({
   open,
   onClose,
@@ -19,6 +25,7 @@ export default function FilterSheet({
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
   selectedMaxCertification, onMaxCertificationChange,
+  selectedExcludeLanguages, onExcludeLanguageToggle,
   onClearAll,
   onSurpriseMe
 }) {
@@ -26,7 +33,7 @@ export default function FilterSheet({
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
     selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 ||
-    selectedMaxCertification !== null
+    selectedMaxCertification !== null || selectedExcludeLanguages.length > 0
 
   return (
     <>
@@ -66,26 +73,6 @@ export default function FilterSheet({
                   }`}
                 >
                   {type.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Age Rating */}
-          <div>
-            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Age Rating (max)</p>
-            <div className="flex flex-wrap gap-1.5">
-              {AGE_RATINGS.map(cert => (
-                <button
-                  key={cert}
-                  onClick={() => onMaxCertificationChange(selectedMaxCertification === cert ? null : cert)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    selectedMaxCertification === cert
-                      ? 'bg-rose-600 text-white shadow-lg'
-                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-                  }`}
-                >
-                  {cert}
                 </button>
               ))}
             </div>
@@ -181,6 +168,51 @@ export default function FilterSheet({
             </div>
           </div>
 
+          {/* Age Rating */}
+          <div>
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Age Rating (max)</p>
+            <div className="flex flex-wrap gap-1.5">
+              {AGE_RATINGS.map(cert => (
+                <button
+                  key={cert}
+                  onClick={() => onMaxCertificationChange(selectedMaxCertification === cert ? null : cert)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    selectedMaxCertification === cert
+                      ? 'bg-rose-600 text-white shadow-lg'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {cert}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Language Exclusion */}
+          <div>
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+              Exclude
+              {selectedExcludeLanguages.length > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 bg-rose-700 rounded text-[10px] text-white">{selectedExcludeLanguages.length}</span>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {EXCLUDE_LANGUAGES.map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => onExcludeLanguageToggle(lang.code)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    selectedExcludeLanguages.includes(lang.code)
+                      ? 'bg-rose-700 text-white shadow-lg scale-105'
+                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Surprise Me */}
           <button
             onClick={() => { onSurpriseMe(); onClose() }}
@@ -227,6 +259,8 @@ FilterSheet.propTypes = {
   onMinRatingChange: PropTypes.func.isRequired,
   selectedMaxCertification: PropTypes.string,
   onMaxCertificationChange: PropTypes.func.isRequired,
+  selectedExcludeLanguages: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onExcludeLanguageToggle: PropTypes.func.isRequired,
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
 }

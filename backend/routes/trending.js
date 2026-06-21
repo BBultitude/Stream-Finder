@@ -3,23 +3,29 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
+const { certsUpTo, buildExcludeLanguagesClause } = require('../utils/certOrder');
 
 const router = Router();
 
 /**
  * GET /api/trending
  * Query params:
- *   type      — 'movie' | 'tv'  (omit for all)
- *   providers — comma-separated TMDB provider IDs to filter by
+ *   type             — 'movie' | 'tv'  (omit for all)
+ *   providers        — comma-separated TMDB provider IDs to filter by
+ *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
+ *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers } = req.query;
+    const { type, providers, maxCertification, excludeLanguages } = req.query;
 
     const providerIds = parseProviderIds(providers);
+    const excludeLangs = parseLanguages(excludeLanguages);
     const params = [];
     const typeClause = buildTypeClause(type, params);
+    const certClause = buildCertClause(maxCertification, params);
+    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
 
     let rows;
     if (providerIds.length > 0) {
@@ -36,6 +42,8 @@ router.get('/', (req, res) => {
           AND sa.provider_id IN (${ph})
         WHERE c.display_status = 'streaming'
         ${typeClause}
+        ${certClause}
+        ${langClause}
         ORDER BY c.popularity DESC
         LIMIT 100
       `).all(...providerIds, ...params);
@@ -47,6 +55,8 @@ router.get('/', (req, res) => {
         FROM content
         WHERE display_status = 'streaming'
         ${typeClause}
+        ${certClause}
+        ${langClause}
         ORDER BY popularity DESC
         LIMIT 100
       `).all(...params);
@@ -64,12 +74,26 @@ function parseProviderIds(str) {
   return str.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
 }
 
+function parseLanguages(str) {
+  if (!str) return [];
+  return str.split(',').filter(Boolean);
+}
+
 function buildTypeClause(type, params) {
   if (type === 'movie' || type === 'tv') {
     params.push(type);
     return 'AND media_type = ?';
   }
   return '';
+}
+
+function buildCertClause(maxCertification, params) {
+  if (!maxCertification) return '';
+  const certs = certsUpTo(maxCertification);
+  if (!certs) return '';
+  certs.forEach(c => params.push(c));
+  const ph = certs.map(() => '?').join(',');
+  return `AND certification IN (${ph})`;
 }
 
 module.exports = router;

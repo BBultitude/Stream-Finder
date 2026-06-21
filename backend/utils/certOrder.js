@@ -9,4 +9,11 @@ function certsUpTo(max) {
   return idx === -1 ? null : AU_CERT_ORDER.slice(0, idx + 1);
 }
 
-module.exports = { AU_CERT_ORDER, certsUpTo };
+function buildExcludeLanguagesClause(languages, params) {
+  if (!languages || languages.length === 0) return '';
+  languages.forEach(l => params.push(l));
+  const ph = languages.map(() => '?').join(',');
+  return `AND (original_language IS NULL OR original_language NOT IN (${ph}))`;
+}
+
+module.exports = { AU_CERT_ORDER, certsUpTo, buildExcludeLanguagesClause };
