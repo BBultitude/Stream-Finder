@@ -18,17 +18,10 @@ function buildCertClause(maxCertification, params) {
   return `AND certification IN (${ph})`;
 }
 
-const MAINSTREAM_EXCLUDE = ['hi', 'ko', 'ja', 'fr'];
-
 function buildLanguageFilterClause(filter, params) {
   if (!filter) return '';
-  if (filter === 'mainstream') {
-    MAINSTREAM_EXCLUDE.forEach(c => params.push(c));
-    const ph = MAINSTREAM_EXCLUDE.map(() => '?').join(',');
-    return `AND (original_language IS NULL OR original_language NOT IN (${ph}))`;
-  }
   params.push(filter);
-  return 'AND original_language IN (?)';
+  return 'AND original_language = ?';
 }
 
 module.exports = { AU_CERT_ORDER, certsUpTo, buildCertClause, buildLanguageFilterClause };

@@ -20,7 +20,7 @@ const PAGE_SIZE = 40;
  *   decade           — start year of decade, e.g. 1990 filters 1990–1999
  *   sortBy           — 'popularity' | 'vote_average' | 'release_date' (default popularity)
  *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
- *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
+ *   languageFilter   — ISO 639-1 code to include, e.g. 'en', 'ko', 'ja'
  */
 router.get('/', (req, res) => {
   try {

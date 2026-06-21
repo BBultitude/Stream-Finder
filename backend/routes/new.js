@@ -19,7 +19,7 @@ const DAYS_30_MS = 30 * 24 * 60 * 60 * 1000;
  *   type             — 'movie' | 'tv'  (omit for all)
  *   providers        — comma-separated TMDB provider IDs to filter by
  *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
- *   languageFilter   — 'mainstream' | ISO 639-1 code e.g. 'hi', 'ko', 'ja', 'fr'
+ *   languageFilter   — ISO 639-1 code to include, e.g. 'en', 'ko', 'ja'
  */
 router.get('/', (req, res) => {
   try {
@@ -37,7 +37,7 @@ router.get('/', (req, res) => {
     if (providerIds.length > 0) {
       const ph = providerIds.map(() => '?').join(',');
       rows = db.prepare(`
-        SELECT DISTINCT c.id, c.media_type, c.title, c.overview, c.poster_path,
+        SELECT c.id, c.media_type, c.title, c.overview, c.poster_path,
           c.release_date, c.vote_average, c.popularity, c.display_status,
           c.runtime, c.number_of_seasons, c.number_of_episodes, c.certification
         FROM content c
@@ -45,18 +45,20 @@ router.get('/', (req, res) => {
           ON sa.content_id = c.id
           AND sa.content_media_type = c.media_type
           AND sa.region = 'AU'
+          AND sa.type = 'flatrate'
           AND sa.provider_id IN (${ph})
         WHERE c.display_status = 'streaming'
           AND sa.first_seen >= ?
           ${typeClause}
           ${certClause}
           ${langClause}
-        ORDER BY sa.first_seen DESC
+        GROUP BY c.id, c.media_type
+        ORDER BY MAX(sa.first_seen) DESC
         LIMIT 100
       `).all(...providerIds, cutoff, ...params);
     } else {
       rows = db.prepare(`
-        SELECT DISTINCT c.id, c.media_type, c.title, c.overview, c.poster_path,
+        SELECT c.id, c.media_type, c.title, c.overview, c.poster_path,
           c.release_date, c.vote_average, c.popularity, c.display_status,
           c.runtime, c.number_of_seasons, c.number_of_episodes, c.certification
         FROM content c
@@ -64,12 +66,14 @@ router.get('/', (req, res) => {
           ON sa.content_id = c.id
           AND sa.content_media_type = c.media_type
           AND sa.region = 'AU'
+          AND sa.type = 'flatrate'
         WHERE c.display_status = 'streaming'
           AND sa.first_seen >= ?
           ${typeClause}
           ${certClause}
           ${langClause}
-        ORDER BY sa.first_seen DESC
+        GROUP BY c.id, c.media_type
+        ORDER BY MAX(sa.first_seen) DESC
         LIMIT 100
       `).all(cutoff, ...params);
     }

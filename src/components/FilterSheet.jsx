@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types'
 import { X } from './icons'
-import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS, AGE_RATINGS, LANGUAGE_FILTERS } from './FilterBar'
+import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS, AGE_RATINGS, LANGUAGE_LABELS } from './FilterBar'
 
 const CONTENT_TYPES = [
   { id: 'all',   name: 'All' },
@@ -18,6 +18,7 @@ export default function FilterSheet({
   selectedMinRating, onMinRatingChange,
   selectedMaxCertification, onMaxCertificationChange,
   selectedLanguageFilter, onLanguageFilterChange,
+  availableLanguages,
   onClearAll,
   onSurpriseMe
 }) {
@@ -180,25 +181,37 @@ export default function FilterSheet({
             </div>
           </div>
 
-          {/* Language filter */}
-          <div>
-            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Language</p>
-            <div className="flex flex-wrap gap-1.5">
-              {LANGUAGE_FILTERS.map(lang => (
+          {/* Language / region filter */}
+          {availableLanguages && availableLanguages.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Language</p>
+              <div className="flex flex-wrap gap-1.5">
                 <button
-                  key={String(lang.id)}
-                  onClick={() => onLanguageFilterChange(lang.id)}
+                  onClick={() => onLanguageFilterChange(null)}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    selectedLanguageFilter === lang.id
+                    selectedLanguageFilter === null
                       ? 'bg-purple-600 text-white shadow-lg scale-105'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                   }`}
                 >
-                  {lang.label}
+                  All
                 </button>
-              ))}
+                {availableLanguages.map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => onLanguageFilterChange(lang.code)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedLanguageFilter === lang.code
+                        ? 'bg-purple-600 text-white shadow-lg scale-105'
+                        : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                    }`}
+                  >
+                    {LANGUAGE_LABELS[lang.code] || lang.code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Surprise Me */}
           <button
@@ -248,6 +261,7 @@ FilterSheet.propTypes = {
   onMaxCertificationChange: PropTypes.func.isRequired,
   selectedLanguageFilter: PropTypes.string,
   onLanguageFilterChange: PropTypes.func.isRequired,
+  availableLanguages: PropTypes.arrayOf(PropTypes.shape({ code: PropTypes.string, count: PropTypes.number })),
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
 }

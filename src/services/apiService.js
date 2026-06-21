@@ -93,6 +93,11 @@ export async function fetchRandom({ type, providers, decade, maxCertification, l
   return data.result || null
 }
 
+export async function fetchLanguages() {
+  const data = await fetchCached('/api/languages')
+  return data.languages || []
+}
+
 // Detail uses server-side cache; not cached client-side
 export async function fetchDetail(mediaType, id) {
   const res = await fetch(`/api/detail/${mediaType}/${id}`)

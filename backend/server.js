@@ -20,6 +20,7 @@ app.use('/api/search',       require('./routes/search'));
 app.use('/api/detail',       require('./routes/detail'));
 app.use('/api/providers',    require('./routes/providers'));
 app.use('/api/random',       require('./routes/random'));
+app.use('/api/languages',    require('./routes/languages'));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

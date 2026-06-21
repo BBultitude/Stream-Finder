@@ -14,7 +14,7 @@ const router = Router();
  *   type             — 'movie' | 'tv'  (omit for all)
  *   providers        — comma-separated TMDB provider IDs to filter by
  *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
- *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
+ *   languageFilter   — ISO 639-1 code to include, e.g. 'en', 'ko', 'ja'
  */
 router.get('/', (req, res) => {
   try {

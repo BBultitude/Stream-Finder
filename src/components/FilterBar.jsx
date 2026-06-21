@@ -59,14 +59,35 @@ const SORT_OPTIONS = [
 
 export const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
 
-export const LANGUAGE_FILTERS = [
-  { id: null,          label: 'All' },
-  { id: 'mainstream',  label: 'Mainstream' },
-  { id: 'hi',         label: 'Bollywood' },
-  { id: 'ko',         label: 'Korean' },
-  { id: 'ja',         label: 'Anime' },
-  { id: 'fr',         label: 'French' },
-]
+export const LANGUAGE_LABELS = {
+  en: 'English',
+  ko: 'Korean',
+  ja: 'Japanese',
+  hi: 'Hindi',
+  fr: 'French',
+  es: 'Spanish',
+  zh: 'Chinese',
+  th: 'Thai',
+  tr: 'Turkish',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  ar: 'Arabic',
+  ru: 'Russian',
+  nl: 'Dutch',
+  sv: 'Swedish',
+  da: 'Danish',
+  no: 'Norwegian',
+  fi: 'Finnish',
+  pl: 'Polish',
+  id: 'Indonesian',
+  tl: 'Filipino',
+  ms: 'Malay',
+  ta: 'Tamil',
+  te: 'Telugu',
+  ml: 'Malayalam',
+  bn: 'Bengali',
+}
 
 export default function FilterBar({
   selectedServices, onServiceToggle,
@@ -76,6 +97,7 @@ export default function FilterBar({
   selectedMinRating, onMinRatingChange,
   selectedMaxCertification, onMaxCertificationChange,
   selectedLanguageFilter, onLanguageFilterChange,
+  availableLanguages,
   onClearAll,
   onSurpriseMe,
   activeTab,
@@ -229,23 +251,35 @@ export default function FilterBar({
         ))}
       </div>
 
-      {/* Language filter */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-sm text-gray-300">Language:</span>
-        {LANGUAGE_FILTERS.map(lang => (
+      {/* Language / region filter */}
+      {availableLanguages && availableLanguages.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-sm text-gray-300">Language:</span>
           <button
-            key={String(lang.id)}
-            onClick={() => onLanguageFilterChange(lang.id)}
+            onClick={() => onLanguageFilterChange(null)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              selectedLanguageFilter === lang.id
+              selectedLanguageFilter === null
                 ? 'bg-purple-600 text-white shadow-lg'
                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
             }`}
           >
-            {lang.label}
+            All
           </button>
-        ))}
-      </div>
+          {availableLanguages.map(lang => (
+            <button
+              key={lang.code}
+              onClick={() => onLanguageFilterChange(lang.code)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                selectedLanguageFilter === lang.code
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              }`}
+            >
+              {LANGUAGE_LABELS[lang.code] || lang.code.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Sort — Browse tab only */}
       {activeTab === 'browse' && (
@@ -304,6 +338,7 @@ FilterBar.propTypes = {
   onMaxCertificationChange: PropTypes.func.isRequired,
   selectedLanguageFilter: PropTypes.string,
   onLanguageFilterChange: PropTypes.func.isRequired,
+  availableLanguages: PropTypes.arrayOf(PropTypes.shape({ code: PropTypes.string, count: PropTypes.number })),
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
   activeTab: PropTypes.string,

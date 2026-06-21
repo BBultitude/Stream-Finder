@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchTrending, fetchNew, fetchBrowse, fetchTop10, fetchSearch, fetchDetail, fetchComingSoon, fetchRandom } from './services/apiService'
+import { fetchTrending, fetchNew, fetchBrowse, fetchTop10, fetchSearch, fetchDetail, fetchComingSoon, fetchRandom, fetchLanguages } from './services/apiService'
 import { getWatchlist, addToWatchlist, removeFromWatchlist, clearWatchlist } from './services/watchlistService'
 import { getSearchHistory, addToSearchHistory, removeFromSearchHistory, clearSearchHistory } from './services/searchHistoryService'
 import FilterBar, { STREAMING_SERVICES } from './components/FilterBar'
@@ -80,6 +80,7 @@ export default function App() {
   const [selectedMinRating, setSelectedMinRating]         = useState(0)
   const [selectedMaxCertification, setSelectedMaxCertification] = useState(null)
   const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null)
+  const [availableLanguages, setAvailableLanguages]         = useState([])
   const [sortBy, setSortBy]                               = useState('popularity')
   const [activeTab, setActiveTab]             = useState('trending')
   const [selectedItem, setSelectedItem]       = useState(null)
@@ -183,6 +184,7 @@ export default function App() {
     loadNewReleases()
     loadBrowseAll()
     loadComingSoon()
+    fetchLanguages().then(setAvailableLanguages).catch(() => {})
     getWatchlist().then(setWatchlist).catch(() => {})
     getSearchHistory().then(setSearchHistory).catch(() => {})
   }, [])
@@ -381,6 +383,7 @@ export default function App() {
         onMaxCertificationChange={setSelectedMaxCertification}
         selectedLanguageFilter={selectedLanguageFilter}
         onLanguageFilterChange={setSelectedLanguageFilter}
+        availableLanguages={availableLanguages}
         onClearAll={handleClearFilters}
         onSurpriseMe={handleSurpriseMe}
       />
@@ -482,6 +485,7 @@ export default function App() {
             onMaxCertificationChange={setSelectedMaxCertification}
             selectedLanguageFilter={selectedLanguageFilter}
             onLanguageFilterChange={setSelectedLanguageFilter}
+            availableLanguages={availableLanguages}
             onClearAll={handleClearFilters}
             onSurpriseMe={handleSurpriseMe}
             activeTab={activeTab}
