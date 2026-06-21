@@ -80,8 +80,8 @@ function buildTypeClause(type, params) {
 }
 
 function buildDecadeClause(decade, params) {
-  const d = parseInt(decade, 10);
-  if (!decade || isNaN(d) || d < 1900 || d > 2090) return '';
+  const d = Number.parseInt(decade, 10);
+  if (!decade || Number.isNaN(d) || d < 1900 || d > 2090) return '';
   params.push(d, d + 9);
   return 'AND CAST(SUBSTR(release_date, 1, 4) AS INTEGER) BETWEEN ? AND ?';
 }

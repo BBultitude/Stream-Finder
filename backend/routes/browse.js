@@ -25,7 +25,7 @@ router.get('/', (req, res) => {
     const db = getDb();
     const { type, providers, decade, sortBy, maxCertification } = req.query;
 
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const offset = (page - 1) * PAGE_SIZE;
 
     const providerIds = parseProviderIds(providers);
@@ -101,8 +101,8 @@ function buildOrderClause(sortBy) {
 }
 
 function buildDecadeClause(decade, params) {
-  const d = parseInt(decade, 10);
-  if (!decade || isNaN(d) || d < 1900 || d > 2090) return '';
+  const d = Number.parseInt(decade, 10);
+  if (!decade || Number.isNaN(d) || d < 1900 || d > 2090) return '';
   params.push(d, d + 9);
   return 'AND CAST(SUBSTR(release_date, 1, 4) AS INTEGER) BETWEEN ? AND ?';
 }

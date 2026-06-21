@@ -47,7 +47,7 @@ async function tmdbGet(path) {
     if (res.ok) return res.json();
 
     if (res.status === 429) {
-      const retryAfterSec = parseInt(res.headers.get('Retry-After') || '10', 10);
+      const retryAfterSec = Number.parseInt(res.headers.get('Retry-After') || '10', 10);
       const waitMs = (retryAfterSec + 2) * 1000; // +2s buffer
       rateLimitedUntil = Date.now() + waitMs;
       console.warn(`[refresh] TMDB 429 on ${shortPath} — backing off ${retryAfterSec + 2}s (attempt ${attempt + 1}/4)`);

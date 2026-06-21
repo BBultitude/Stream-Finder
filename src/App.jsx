@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { fetchTrending, fetchNew, fetchBrowse, fetchTop10, fetchSearch, fetchDetail, fetchComingSoon, fetchRandom } from './services/apiService'
 import { getWatchlist, addToWatchlist, removeFromWatchlist, clearWatchlist } from './services/watchlistService'
 import { getSearchHistory, addToSearchHistory, removeFromSearchHistory, clearSearchHistory } from './services/searchHistoryService'
-import { STREAMING_SERVICES } from './components/FilterBar'
-import FilterBar from './components/FilterBar'
+import FilterBar, { STREAMING_SERVICES } from './components/FilterBar'
 import TabNav from './components/TabNav'
 import ContentCard from './components/ContentCard'
 import Top10List from './components/Top10List'
@@ -268,7 +267,7 @@ export default function App() {
     let filtered = content
     if (selectedGenres.length > 0) {
       filtered = filtered.filter(item =>
-        item.genre_ids && item.genre_ids.some(gid => selectedGenres.includes(gid))
+        item.genre_ids?.some(gid => selectedGenres.includes(gid))
       )
     }
     if (selectedContentType !== 'all') {
@@ -296,6 +295,15 @@ export default function App() {
     : activeTab === 'watchlist'   ? []
     : activeTab === 'coming-soon' ? []
     : filterContent(browseAll)
+
+  const handleClearFilters = () => {
+    setSelectedServices([])
+    setSelectedGenres([])
+    setSelectedContentType('all')
+    setSelectedDecade(null)
+    setSelectedMinRating(0)
+    setSelectedMaxCertification(null)
+  }
 
   if (selectedItem) {
     return (
@@ -337,14 +345,7 @@ export default function App() {
         onMinRatingChange={setSelectedMinRating}
         selectedMaxCertification={selectedMaxCertification}
         onMaxCertificationChange={setSelectedMaxCertification}
-        onClearAll={() => {
-          setSelectedServices([])
-          setSelectedGenres([])
-          setSelectedContentType('all')
-          setSelectedDecade(null)
-          setSelectedMinRating(0)
-          setSelectedMaxCertification(null)
-        }}
+        onClearAll={handleClearFilters}
         onSurpriseMe={handleSurpriseMe}
       />
 
@@ -420,10 +421,10 @@ export default function App() {
               {(selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 || selectedMaxCertification !== null) && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 rounded-full text-[10px] flex items-center justify-center text-white">
                   {selectedServices.length + selectedGenres.length +
-                    (selectedContentType !== 'all' ? 1 : 0) +
-                    (selectedDecade !== null ? 1 : 0) +
+                    (selectedContentType === 'all' ? 0 : 1) +
+                    (selectedDecade === null ? 0 : 1) +
                     (selectedMinRating > 0 ? 1 : 0) +
-                    (selectedMaxCertification !== null ? 1 : 0)}
+                    (selectedMaxCertification === null ? 0 : 1)}
                 </span>
               )}
             </button>
@@ -445,14 +446,7 @@ export default function App() {
             onMinRatingChange={setSelectedMinRating}
             selectedMaxCertification={selectedMaxCertification}
             onMaxCertificationChange={setSelectedMaxCertification}
-            onClearAll={() => {
-              setSelectedServices([])
-              setSelectedGenres([])
-              setSelectedContentType('all')
-              setSelectedDecade(null)
-              setSelectedMinRating(0)
-              setSelectedMaxCertification(null)
-            }}
+            onClearAll={handleClearFilters}
             onSurpriseMe={handleSurpriseMe}
             activeTab={activeTab}
             sortBy={sortBy}

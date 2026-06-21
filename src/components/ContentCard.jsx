@@ -88,7 +88,7 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
             </div>
         }
         {(() => {
-          const newPlatform = item.streaming && item.streaming.find(s => s.isNew)
+          const newPlatform = item.streaming?.find(s => s.isNew)
           return newPlatform && (
             <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">
               New on {newPlatform.name}
