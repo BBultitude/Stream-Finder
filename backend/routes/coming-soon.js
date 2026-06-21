@@ -3,7 +3,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { buildExcludeLanguagesClause } = require('../utils/certOrder');
+const { buildLanguageFilterClause } = require('../utils/certOrder');
 
 const router = Router();
 
@@ -27,15 +27,13 @@ const COLS = `id, media_type, title, overview, poster_path, release_date, vote_a
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, excludeLanguages } = req.query;
-
-    const excludeLangs = excludeLanguages ? excludeLanguages.split(',').filter(Boolean) : [];
+    const { type, languageFilter } = req.query;
 
     // Build shared type + language params — each query uses its own params array
     // because the noDate query prepends staleCutoff before the type param.
     const buildParams = () => {
       const p = [];
-      const langClause = buildExcludeLanguagesClause(excludeLangs, p);
+      const langClause = buildLanguageFilterClause(languageFilter || null, p);
       const typeClause = (type === 'movie' || type === 'tv')
         ? (p.push(type), 'AND media_type = ?')
         : '';

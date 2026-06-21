@@ -3,35 +3,35 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { buildCertClause, buildExcludeLanguagesClause } = require('../utils/certOrder');
-const { parseProviderIds, buildTypeClause, parseLanguages } = require('../utils/routeHelpers');
+const { buildCertClause, buildLanguageFilterClause } = require('../utils/certOrder');
+const { parseProviderIds, buildTypeClause } = require('../utils/routeHelpers');
 
 const router = Router();
 
+const DAYS_30_MS = 30 * 24 * 60 * 60 * 1000;
+
 /**
  * GET /api/new
- * Returns content from the last 6 months, sorted by release date descending.
+ * Returns content newly added to AU streaming platforms (first_seen within 30 days),
+ * sorted by first_seen descending. Uses streaming_availability.first_seen so that
+ * every result has the "New on Platform" badge in the UI.
  * Query params:
  *   type             — 'movie' | 'tv'  (omit for all)
  *   providers        — comma-separated TMDB provider IDs to filter by
  *   maxCertification — AU classification ceiling, e.g. 'PG' returns E, G, PG
- *   excludeLanguages — comma-separated ISO 639-1 codes to exclude, e.g. 'hi,ko'
+ *   languageFilter   — 'mainstream' | ISO 639-1 code e.g. 'hi', 'ko', 'ja', 'fr'
  */
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, maxCertification, excludeLanguages } = req.query;
+    const { type, providers, maxCertification, languageFilter } = req.query;
 
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - 6);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-
+    const cutoff = Date.now() - DAYS_30_MS;
     const providerIds = parseProviderIds(providers);
-    const excludeLangs = parseLanguages(excludeLanguages);
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const certClause = buildCertClause(maxCertification, params);
-    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
+    const langClause = buildLanguageFilterClause(languageFilter || null, params);
 
     let rows;
     if (providerIds.length > 0) {
@@ -46,28 +46,32 @@ router.get('/', (req, res) => {
           AND sa.content_media_type = c.media_type
           AND sa.region = 'AU'
           AND sa.provider_id IN (${ph})
-        WHERE c.release_date >= ?
-          AND c.display_status = 'streaming'
+        WHERE c.display_status = 'streaming'
+          AND sa.first_seen >= ?
           ${typeClause}
           ${certClause}
           ${langClause}
-        ORDER BY c.release_date DESC
+        ORDER BY sa.first_seen DESC
         LIMIT 100
-      `).all(...providerIds, cutoffStr, ...params);
+      `).all(...providerIds, cutoff, ...params);
     } else {
       rows = db.prepare(`
-        SELECT id, media_type, title, overview, poster_path,
-          release_date, vote_average, popularity, display_status,
-          runtime, number_of_seasons, number_of_episodes, certification
-        FROM content
-        WHERE release_date >= ?
-          AND display_status = 'streaming'
+        SELECT DISTINCT c.id, c.media_type, c.title, c.overview, c.poster_path,
+          c.release_date, c.vote_average, c.popularity, c.display_status,
+          c.runtime, c.number_of_seasons, c.number_of_episodes, c.certification
+        FROM content c
+        INNER JOIN streaming_availability sa
+          ON sa.content_id = c.id
+          AND sa.content_media_type = c.media_type
+          AND sa.region = 'AU'
+        WHERE c.display_status = 'streaming'
+          AND sa.first_seen >= ?
           ${typeClause}
           ${certClause}
           ${langClause}
-        ORDER BY release_date DESC
+        ORDER BY sa.first_seen DESC
         LIMIT 100
-      `).all(cutoffStr, ...params);
+      `).all(cutoff, ...params);
     }
 
     res.json({ results: attachStreamingAndGenres(db, rows) });

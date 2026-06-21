@@ -18,11 +18,17 @@ function buildCertClause(maxCertification, params) {
   return `AND certification IN (${ph})`;
 }
 
-function buildExcludeLanguagesClause(languages, params) {
-  if (!languages || languages.length === 0) return '';
-  languages.forEach(l => params.push(l));
-  const ph = languages.map(() => '?').join(',');
-  return `AND (original_language IS NULL OR original_language NOT IN (${ph}))`;
+const MAINSTREAM_EXCLUDE = ['hi', 'ko', 'ja', 'fr'];
+
+function buildLanguageFilterClause(filter, params) {
+  if (!filter) return '';
+  if (filter === 'mainstream') {
+    MAINSTREAM_EXCLUDE.forEach(c => params.push(c));
+    const ph = MAINSTREAM_EXCLUDE.map(() => '?').join(',');
+    return `AND (original_language IS NULL OR original_language NOT IN (${ph}))`;
+  }
+  params.push(filter);
+  return 'AND original_language IN (?)';
 }
 
-module.exports = { AU_CERT_ORDER, certsUpTo, buildCertClause, buildExcludeLanguagesClause };
+module.exports = { AU_CERT_ORDER, certsUpTo, buildCertClause, buildLanguageFilterClause };

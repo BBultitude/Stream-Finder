@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types'
 import { X } from './icons'
-import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS, AGE_RATINGS, EXCLUDE_LANGUAGES } from './FilterBar'
+import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS, AGE_RATINGS, LANGUAGE_FILTERS } from './FilterBar'
 
 const CONTENT_TYPES = [
   { id: 'all',   name: 'All' },
@@ -17,7 +17,7 @@ export default function FilterSheet({
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
   selectedMaxCertification, onMaxCertificationChange,
-  selectedExcludeLanguages, onExcludeLanguageToggle,
+  selectedLanguageFilter, onLanguageFilterChange,
   onClearAll,
   onSurpriseMe
 }) {
@@ -25,7 +25,7 @@ export default function FilterSheet({
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
     selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 ||
-    selectedMaxCertification !== null || selectedExcludeLanguages.length > 0
+    selectedMaxCertification !== null || selectedLanguageFilter !== null
 
   return (
     <>
@@ -180,22 +180,17 @@ export default function FilterSheet({
             </div>
           </div>
 
-          {/* Language Exclusion */}
+          {/* Language filter */}
           <div>
-            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
-              Exclude
-              {selectedExcludeLanguages.length > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 bg-rose-700 rounded text-[10px] text-white">{selectedExcludeLanguages.length}</span>
-              )}
-            </p>
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Language</p>
             <div className="flex flex-wrap gap-1.5">
-              {EXCLUDE_LANGUAGES.map(lang => (
+              {LANGUAGE_FILTERS.map(lang => (
                 <button
-                  key={lang.code}
-                  onClick={() => onExcludeLanguageToggle(lang.code)}
+                  key={String(lang.id)}
+                  onClick={() => onLanguageFilterChange(lang.id)}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    selectedExcludeLanguages.includes(lang.code)
-                      ? 'bg-rose-700 text-white shadow-lg scale-105'
+                    selectedLanguageFilter === lang.id
+                      ? 'bg-purple-600 text-white shadow-lg scale-105'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                   }`}
                 >
@@ -251,8 +246,8 @@ FilterSheet.propTypes = {
   onMinRatingChange: PropTypes.func.isRequired,
   selectedMaxCertification: PropTypes.string,
   onMaxCertificationChange: PropTypes.func.isRequired,
-  selectedExcludeLanguages: PropTypes.arrayOf(PropTypes.string).isRequired,
-  onExcludeLanguageToggle: PropTypes.func.isRequired,
+  selectedLanguageFilter: PropTypes.string,
+  onLanguageFilterChange: PropTypes.func.isRequired,
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
 }

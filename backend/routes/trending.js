@@ -3,8 +3,8 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { buildCertClause, buildExcludeLanguagesClause } = require('../utils/certOrder');
-const { parseProviderIds, buildTypeClause, parseLanguages } = require('../utils/routeHelpers');
+const { buildCertClause, buildLanguageFilterClause } = require('../utils/certOrder');
+const { parseProviderIds, buildTypeClause } = require('../utils/routeHelpers');
 
 const router = Router();
 
@@ -19,14 +19,13 @@ const router = Router();
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, maxCertification, excludeLanguages } = req.query;
+    const { type, providers, maxCertification, languageFilter } = req.query;
 
     const providerIds = parseProviderIds(providers);
-    const excludeLangs = parseLanguages(excludeLanguages);
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const certClause = buildCertClause(maxCertification, params);
-    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
+    const langClause = buildLanguageFilterClause(languageFilter || null, params);
 
     let rows;
     if (providerIds.length > 0) {

@@ -87,11 +87,12 @@ function upsertContent(db, item, now) {
     item.original_language || null
   );
 
-  // Always update mutable fields (popularity/vote_average drift over time)
+  // Update mutable fields; populate original_language if not yet set
   db.prepare(`
-    UPDATE content SET popularity = ?, vote_average = ?, last_updated = ?
+    UPDATE content SET popularity = ?, vote_average = ?, last_updated = ?,
+      original_language = COALESCE(original_language, ?)
     WHERE id = ? AND media_type = ?
-  `).run(item.popularity || 0, item.vote_average || 0, now, item.id, item.media_type);
+  `).run(item.popularity || 0, item.vote_average || 0, now, item.original_language || null, item.id, item.media_type);
 }
 
 function upsertGenres(db, item) {

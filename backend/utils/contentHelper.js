@@ -63,7 +63,7 @@ function buildStreamingMap(db, items) {
   const map = {};
   const movieIds = items.filter(i => i.media_type === 'movie').map(i => i.id);
   const tvIds = items.filter(i => i.media_type === 'tv').map(i => i.id);
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
   for (const [mediaType, ids] of [['movie', movieIds], ['tv', tvIds]]) {
     if (ids.length === 0) continue;
@@ -84,7 +84,7 @@ function buildStreamingMap(db, items) {
       map[key].push({
         name: row.provider_name,
         logo: row.logo_path ? `${TMDB_IMAGE_BASE}${row.logo_path}` : '',
-        isNew: row.first_seen >= sevenDaysAgo
+        isNew: row.first_seen >= thirtyDaysAgo
       });
     }
   }

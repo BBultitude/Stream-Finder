@@ -20,9 +20,4 @@ function buildDecadeClause(decade, params) {
   return 'AND CAST(SUBSTR(release_date, 1, 4) AS INTEGER) BETWEEN ? AND ?';
 }
 
-function parseLanguages(str) {
-  if (!str) return [];
-  return str.split(',').filter(Boolean);
-}
-
-module.exports = { parseProviderIds, buildTypeClause, buildDecadeClause, parseLanguages };
+module.exports = { parseProviderIds, buildTypeClause, buildDecadeClause };

@@ -13,34 +13,35 @@ async function fetchCached(url) {
   const cached = await cacheGet(url)
   if (cached) return cached
   const res = await fetch(url)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = await res.json()
   cacheSet(url, json)
   return json
 }
 
-export async function fetchTrending({ type, providers, maxCertification, excludeLanguages } = {}) {
+export async function fetchTrending({ type, providers, maxCertification, languageFilter } = {}) {
   const qs = buildQuery({
     type: type === 'all' ? undefined : type,
     providers,
     maxCertification: maxCertification || undefined,
-    excludeLanguages: excludeLanguages?.length ? excludeLanguages.join(',') : undefined,
+    languageFilter: languageFilter || undefined,
   })
   const data = await fetchCached('/api/trending' + qs)
   return data.results || []
 }
 
-export async function fetchNew({ type, providers, maxCertification, excludeLanguages } = {}) {
+export async function fetchNew({ type, providers, maxCertification, languageFilter } = {}) {
   const qs = buildQuery({
     type: type === 'all' ? undefined : type,
     providers,
     maxCertification: maxCertification || undefined,
-    excludeLanguages: excludeLanguages?.length ? excludeLanguages.join(',') : undefined,
+    languageFilter: languageFilter || undefined,
   })
   const data = await fetchCached('/api/new' + qs)
   return data.results || []
 }
 
-export async function fetchBrowse({ page = 1, type, providers, decade, sortBy, maxCertification, excludeLanguages } = {}) {
+export async function fetchBrowse({ page = 1, type, providers, decade, sortBy, maxCertification, languageFilter } = {}) {
   const qs = buildQuery({
     page,
     type: type === 'all' ? undefined : type,
@@ -48,7 +49,7 @@ export async function fetchBrowse({ page = 1, type, providers, decade, sortBy, m
     decade: decade || undefined,
     sortBy: sortBy === 'popularity' ? undefined : sortBy,
     maxCertification: maxCertification || undefined,
-    excludeLanguages: excludeLanguages?.length ? excludeLanguages.join(',') : undefined,
+    languageFilter: languageFilter || undefined,
   })
   const data = await fetchCached('/api/browse' + qs)
   return data.results || []
@@ -69,23 +70,23 @@ export async function fetchSearch(query, { providers } = {}) {
   return data.results || []
 }
 
-export async function fetchComingSoon({ type, excludeLanguages } = {}) {
+export async function fetchComingSoon({ type, languageFilter } = {}) {
   const qs = buildQuery({
     type: type === 'all' ? undefined : type,
-    excludeLanguages: excludeLanguages?.length ? excludeLanguages.join(',') : undefined,
+    languageFilter: languageFilter || undefined,
   })
   const data = await fetchCached('/api/coming-soon' + qs)
   return data.results || []
 }
 
 // Random is not cached — intentionally returns a different result each call
-export async function fetchRandom({ type, providers, decade, maxCertification, excludeLanguages } = {}) {
+export async function fetchRandom({ type, providers, decade, maxCertification, languageFilter } = {}) {
   const qs = buildQuery({
     type: type === 'all' ? undefined : type,
     providers,
     decade: decade || undefined,
     maxCertification: maxCertification || undefined,
-    excludeLanguages: excludeLanguages?.length ? excludeLanguages.join(',') : undefined,
+    languageFilter: languageFilter || undefined,
   })
   const res = await fetch('/api/random' + qs)
   const data = await res.json()

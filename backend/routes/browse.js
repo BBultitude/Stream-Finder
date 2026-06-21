@@ -3,7 +3,7 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { buildCertClause, buildExcludeLanguagesClause } = require('../utils/certOrder');
+const { buildCertClause, buildLanguageFilterClause } = require('../utils/certOrder');
 const { parseProviderIds, buildTypeClause, buildDecadeClause } = require('../utils/routeHelpers');
 
 const router = Router();
@@ -25,18 +25,17 @@ const PAGE_SIZE = 40;
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const { type, providers, decade, sortBy, maxCertification, excludeLanguages } = req.query;
+    const { type, providers, decade, sortBy, maxCertification, languageFilter } = req.query;
 
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const offset = (page - 1) * PAGE_SIZE;
 
     const providerIds = parseProviderIds(providers);
-    const excludeLangs = excludeLanguages ? excludeLanguages.split(',').filter(Boolean) : [];
     const params = [];
     const typeClause = buildTypeClause(type, params);
     const decadeClause = buildDecadeClause(decade, params);
     const certClause = buildCertClause(maxCertification, params);
-    const langClause = buildExcludeLanguagesClause(excludeLangs, params);
+    const langClause = buildLanguageFilterClause(languageFilter || null, params);
     const orderClause = buildOrderClause(sortBy);
 
     let rows;

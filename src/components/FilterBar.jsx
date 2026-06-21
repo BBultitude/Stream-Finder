@@ -59,10 +59,13 @@ const SORT_OPTIONS = [
 
 export const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
 
-export const EXCLUDE_LANGUAGES = [
-  { code: 'hi', label: 'Bollywood (Hindi)' },
-  { code: 'ko', label: 'Korean' },
-  { code: 'ja', label: 'Anime (Japanese)' },
+export const LANGUAGE_FILTERS = [
+  { id: null,          label: 'All' },
+  { id: 'mainstream',  label: 'Mainstream' },
+  { id: 'hi',         label: 'Bollywood' },
+  { id: 'ko',         label: 'Korean' },
+  { id: 'ja',         label: 'Anime' },
+  { id: 'fr',         label: 'French' },
 ]
 
 export default function FilterBar({
@@ -72,7 +75,7 @@ export default function FilterBar({
   selectedDecade, onDecadeChange,
   selectedMinRating, onMinRatingChange,
   selectedMaxCertification, onMaxCertificationChange,
-  selectedExcludeLanguages, onExcludeLanguageToggle,
+  selectedLanguageFilter, onLanguageFilterChange,
   onClearAll,
   onSurpriseMe,
   activeTab,
@@ -84,7 +87,7 @@ export default function FilterBar({
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
     selectedContentType !== 'all' || selectedDecade !== null || selectedMinRating > 0 ||
-    selectedMaxCertification !== null || selectedExcludeLanguages.length > 0
+    selectedMaxCertification !== null || selectedLanguageFilter !== null
 
   return (
     <div className="max-w-3xl mx-auto mb-8 space-y-4">
@@ -226,16 +229,16 @@ export default function FilterBar({
         ))}
       </div>
 
-      {/* Language exclusion */}
+      {/* Language filter */}
       <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-sm text-gray-300">Exclude:</span>
-        {EXCLUDE_LANGUAGES.map(lang => (
+        <span className="text-sm text-gray-300">Language:</span>
+        {LANGUAGE_FILTERS.map(lang => (
           <button
-            key={lang.code}
-            onClick={() => onExcludeLanguageToggle(lang.code)}
+            key={String(lang.id)}
+            onClick={() => onLanguageFilterChange(lang.id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              selectedExcludeLanguages.includes(lang.code)
-                ? 'bg-rose-700 text-white shadow-lg'
+              selectedLanguageFilter === lang.id
+                ? 'bg-purple-600 text-white shadow-lg'
                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
             }`}
           >
@@ -299,8 +302,8 @@ FilterBar.propTypes = {
   onMinRatingChange: PropTypes.func.isRequired,
   selectedMaxCertification: PropTypes.string,
   onMaxCertificationChange: PropTypes.func.isRequired,
-  selectedExcludeLanguages: PropTypes.arrayOf(PropTypes.string).isRequired,
-  onExcludeLanguageToggle: PropTypes.func.isRequired,
+  selectedLanguageFilter: PropTypes.string,
+  onLanguageFilterChange: PropTypes.func.isRequired,
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
   activeTab: PropTypes.string,
