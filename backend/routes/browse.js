@@ -3,7 +3,8 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
-const { certsUpTo, buildExcludeLanguagesClause } = require('../utils/certOrder');
+const { buildCertClause, buildExcludeLanguagesClause } = require('../utils/certOrder');
+const { parseProviderIds, buildTypeClause, buildDecadeClause } = require('../utils/routeHelpers');
 
 const router = Router();
 
@@ -82,43 +83,10 @@ router.get('/', (req, res) => {
   }
 });
 
-function parseProviderIds(str) {
-  if (!str) return [];
-  return str.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
-}
-
-function buildTypeClause(type, params) {
-  if (type === 'movie' || type === 'tv') {
-    params.push(type);
-    return 'AND media_type = ?';
-  }
-  return '';
-}
-
-/**
- * Builds a WHERE fragment filtering release_date to a decade range.
- * Uses SUBSTR to extract the 4-digit year from the YYYY-MM-DD text column.
- */
 function buildOrderClause(sortBy) {
   if (sortBy === 'vote_average') return 'ORDER BY vote_average DESC';
   if (sortBy === 'release_date') return 'ORDER BY release_date DESC';
   return 'ORDER BY popularity DESC';
-}
-
-function buildDecadeClause(decade, params) {
-  const d = Number.parseInt(decade, 10);
-  if (!decade || Number.isNaN(d) || d < 1900 || d > 2090) return '';
-  params.push(d, d + 9);
-  return 'AND CAST(SUBSTR(release_date, 1, 4) AS INTEGER) BETWEEN ? AND ?';
-}
-
-function buildCertClause(maxCertification, params) {
-  if (!maxCertification) return '';
-  const certs = certsUpTo(maxCertification);
-  if (!certs) return '';
-  certs.forEach(c => params.push(c));
-  const ph = certs.map(() => '?').join(',');
-  return `AND certification IN (${ph})`;
 }
 
 module.exports = router;

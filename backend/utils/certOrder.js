@@ -9,6 +9,15 @@ function certsUpTo(max) {
   return idx === -1 ? null : AU_CERT_ORDER.slice(0, idx + 1);
 }
 
+function buildCertClause(maxCertification, params) {
+  if (!maxCertification) return '';
+  const certs = certsUpTo(maxCertification);
+  if (!certs) return '';
+  certs.forEach(c => params.push(c));
+  const ph = certs.map(() => '?').join(',');
+  return `AND certification IN (${ph})`;
+}
+
 function buildExcludeLanguagesClause(languages, params) {
   if (!languages || languages.length === 0) return '';
   languages.forEach(l => params.push(l));
@@ -16,4 +25,4 @@ function buildExcludeLanguagesClause(languages, params) {
   return `AND (original_language IS NULL OR original_language NOT IN (${ph}))`;
 }
 
-module.exports = { AU_CERT_ORDER, certsUpTo, buildExcludeLanguagesClause };
+module.exports = { AU_CERT_ORDER, certsUpTo, buildCertClause, buildExcludeLanguagesClause };

@@ -57,9 +57,9 @@ const SORT_OPTIONS = [
   { id: 'release_date', label: 'Newest First' },
 ]
 
-const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
+export const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
 
-const EXCLUDE_LANGUAGES = [
+export const EXCLUDE_LANGUAGES = [
   { code: 'hi', label: 'Bollywood (Hindi)' },
   { code: 'ko', label: 'Korean' },
   { code: 'ja', label: 'Anime (Japanese)' },

@@ -1,19 +1,11 @@
 import PropTypes from 'prop-types'
 import { X } from './icons'
-import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS } from './FilterBar'
+import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS, AGE_RATINGS, EXCLUDE_LANGUAGES } from './FilterBar'
 
 const CONTENT_TYPES = [
   { id: 'all',   name: 'All' },
   { id: 'movie', name: 'Movies' },
   { id: 'tv',    name: 'TV Shows' },
-]
-
-const AGE_RATINGS = ['G', 'PG', 'M', 'MA15+', 'R18+']
-
-const EXCLUDE_LANGUAGES = [
-  { code: 'hi', label: 'Bollywood (Hindi)' },
-  { code: 'ko', label: 'Korean' },
-  { code: 'ja', label: 'Anime (Japanese)' },
 ]
 
 export default function FilterSheet({
