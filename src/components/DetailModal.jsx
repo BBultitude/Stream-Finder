@@ -5,6 +5,8 @@ import { SkeletonCompactCard } from './SkeletonCard'
 import { itemShape } from '../propTypes'
 import { formatRuntime } from '../utils/formatRuntime'
 
+const SKEL_RECS = ['s0','s1','s2','s3','s4','s5']
+
 export default function DetailModal({ item, similarContent, loadingDetail, onClose, onSimilarClick, isInWatchlist, onWatchlistToggle }) {
   const isMovie = item.media_type === 'movie'
   const displayName = item.title || item.name
@@ -195,7 +197,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
               <div className="px-6 pb-6">
                 <h3 className="text-2xl font-bold mb-4 text-white">Recommended For You</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => <SkeletonCompactCard key={`skel-rec-${i}`} />)}
+                  {SKEL_RECS.map(k => <SkeletonCompactCard key={k} />)}
                 </div>
               </div>
             )}

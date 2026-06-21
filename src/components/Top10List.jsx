@@ -14,13 +14,11 @@ export default function Top10List({ items, onItemClick }) {
   return (
     <div className="space-y-3 max-w-3xl mx-auto">
       {items.map((item, idx) => (
-        <div
+        <button
           key={item.id}
+          type="button"
           onClick={() => onItemClick(item)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter') onItemClick(item) }}
-          className="flex items-center gap-4 bg-gray-800 rounded-xl p-3 hover:bg-gray-700 border border-gray-700 hover:border-purple-500 cursor-pointer transition-all"
+          className="w-full text-left flex items-center gap-4 bg-gray-800 rounded-xl p-3 hover:bg-gray-700 border border-gray-700 hover:border-purple-500 cursor-pointer transition-all"
         >
           <span className="text-4xl font-black w-12 text-center flex-shrink-0 text-gray-600 select-none">
             {idx + 1}
@@ -49,7 +47,7 @@ export default function Top10List({ items, onItemClick }) {
               )}
             </div>
           )}
-        </div>
+        </button>
       ))}
     </div>
   )

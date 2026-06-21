@@ -5,6 +5,19 @@ All notable changes to Stream Finder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3] - 2026-06-21
+
+### Fixed
+- `ContentCard.jsx`: cognitive complexity reduced from 29 → ~4 by extracting `CompactCard` and `DefaultCard` as module-level sub-components; `ContentCard` is now a thin dispatcher
+- `ContentCard.jsx`, `ComingSoonCard.jsx`, `Top10List.jsx`, `FilterSheet.jsx`: replaced `<div role="button">` with native `<button type="button">` to satisfy S6819 (non-native interactive elements); for cards with a nested watchlist action, the card button and watchlist button are siblings inside a wrapper div to avoid invalid `<button>` nesting
+- `App.jsx`, `DetailModal.jsx`: skeleton placeholder keys now use pre-computed string-ID constant arrays (`SKEL_TOP10`, `SKEL_CARDS`, `SKEL_RECS`) iterated via value (not index) — fully resolves S6479 array-index-as-key
+
+### Security
+- SonarQube Dockerfile hotspot (S6471) marked SAFE: Node.js backend runs as non-root `node` user via supervisord `user=node`; ownership transferred at build time
+- SonarQube cacheService.js S3800 accepted as false positive: `getTtl()` always returns a number
+
+---
+
 ## [11.2] - 2026-06-21
 
 ### Security

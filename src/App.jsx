@@ -61,6 +61,9 @@ const TAB_HEADINGS = {
   new: "✨ New Releases",
 }
 
+const SKEL_TOP10 = ['s0','s1','s2','s3','s4','s5','s6','s7','s8','s9']
+const SKEL_CARDS = ['s0','s1','s2','s3','s4','s5','s6','s7','s8','s9','s10','s11','s12','s13','s14','s15','s16','s17','s18','s19']
+
 export default function App() {
   const [searchQuery, setSearchQuery]         = useState('')
   const [results, setResults]                 = useState([])
@@ -502,7 +505,7 @@ export default function App() {
           <>
             <h2 className="text-2xl font-bold mb-6 text-white">🏆 Top 10 in Australia</h2>
             <div className="space-y-3 max-w-3xl mx-auto">
-              {Array.from({ length: 10 }).map((_, i) => <SkeletonTop10Row key={`skel-top10-${i}`} />)}
+              {SKEL_TOP10.map(k => <SkeletonTop10Row key={k} />)}
             </div>
           </>
         )}
@@ -518,7 +521,7 @@ export default function App() {
         {/* Grid skeleton */}
         {loading && activeTab !== 'top10' && activeTab !== 'watchlist' && activeTab !== 'coming-soon' && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={`skel-card-${i}`} />)}
+            {SKEL_CARDS.map(k => <SkeletonCard key={k} />)}
           </div>
         )}
 
