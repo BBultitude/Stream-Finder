@@ -34,6 +34,10 @@ export default function FilterSheet({
       <div
         className="md:hidden fixed inset-0 z-40 bg-black/60"
         onClick={onClose}
+        role="button"
+        tabIndex={0}
+        aria-label="Close filters"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') onClose() }}
       />
 
       {/* Sheet */}

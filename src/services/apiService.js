@@ -19,25 +19,25 @@ async function fetchCached(url) {
 }
 
 export async function fetchTrending({ type, providers } = {}) {
-  const qs = buildQuery({ type: type !== 'all' ? type : undefined, providers })
+  const qs = buildQuery({ type: type === 'all' ? undefined : type, providers })
   const data = await fetchCached('/api/trending' + qs)
   return data.results || []
 }
 
 export async function fetchNew({ type, providers } = {}) {
-  const qs = buildQuery({ type: type !== 'all' ? type : undefined, providers })
+  const qs = buildQuery({ type: type === 'all' ? undefined : type, providers })
   const data = await fetchCached('/api/new' + qs)
   return data.results || []
 }
 
 export async function fetchBrowse({ page = 1, type, providers, decade, sortBy, maxCertification } = {}) {
-  const qs = buildQuery({ page, type: type !== 'all' ? type : undefined, providers, decade: decade || undefined, sortBy: sortBy !== 'popularity' ? sortBy : undefined, maxCertification: maxCertification || undefined })
+  const qs = buildQuery({ page, type: type === 'all' ? undefined : type, providers, decade: decade || undefined, sortBy: sortBy === 'popularity' ? undefined : sortBy, maxCertification: maxCertification || undefined })
   const data = await fetchCached('/api/browse' + qs)
   return data.results || []
 }
 
 export async function fetchTop10({ type } = {}) {
-  const qs = buildQuery({ type: type !== 'all' ? type : undefined })
+  const qs = buildQuery({ type: type === 'all' ? undefined : type })
   const data = await fetchCached('/api/top10' + qs)
   return data.results || []
 }
@@ -52,14 +52,14 @@ export async function fetchSearch(query, { providers } = {}) {
 }
 
 export async function fetchComingSoon({ type } = {}) {
-  const qs = buildQuery({ type: type !== 'all' ? type : undefined })
+  const qs = buildQuery({ type: type === 'all' ? undefined : type })
   const data = await fetchCached('/api/coming-soon' + qs)
   return data.results || []
 }
 
 // Random is not cached — intentionally returns a different result each call
 export async function fetchRandom({ type, providers, decade } = {}) {
-  const qs = buildQuery({ type: type !== 'all' ? type : undefined, providers, decade: decade || undefined })
+  const qs = buildQuery({ type: type === 'all' ? undefined : type, providers, decade: decade || undefined })
   const res = await fetch('/api/random' + qs)
   const data = await res.json()
   return data.result || null

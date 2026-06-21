@@ -3,13 +3,7 @@ import { ArrowLeft, Film, Tv, PlayIcon, Bookmark, Person } from './icons'
 import ContentCard from './ContentCard'
 import { SkeletonCompactCard } from './SkeletonCard'
 import { itemShape } from '../propTypes'
-
-function formatRuntime(minutes) {
-  if (!minutes) return null
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`
-}
+import { formatRuntime } from '../utils/formatRuntime'
 
 export default function DetailModal({ item, similarContent, loadingDetail, onClose, onSimilarClick, isInWatchlist, onWatchlistToggle }) {
   const isMovie = item.media_type === 'movie'
@@ -56,7 +50,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                       ★ {item.vote_average.toFixed(1)}
                     </span>
                   )}
-                  {releaseYear && (
+                  {releaseYear !== null && (
                     <span className="px-3 py-1 bg-gray-700 rounded-full text-sm text-white">{releaseYear}</span>
                   )}
                   {item.runtime && (
@@ -64,7 +58,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                   )}
                   {item.number_of_seasons && (
                     <span className="px-3 py-1 bg-gray-700 rounded-full text-sm text-white">
-                      {item.number_of_seasons} Season{item.number_of_seasons !== 1 ? 's' : ''}
+                      {item.number_of_seasons} Season{item.number_of_seasons === 1 ? '' : 's'}
                       {item.number_of_episodes ? ` · ${item.number_of_episodes} Eps` : ''}
                     </span>
                   )}
@@ -201,7 +195,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
               <div className="px-6 pb-6">
                 <h3 className="text-2xl font-bold mb-4 text-white">Recommended For You</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => <SkeletonCompactCard key={i} />)}
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonCompactCard key={`skel-rec-${i}`} />)}
                 </div>
               </div>
             )}

@@ -310,6 +310,64 @@ async function refreshStreamingAvailability() {
   }
 }
 
+async function refreshDecade(db, decadeStart, now, sevenDaysMs) {
+  const decadeEnd = decadeStart + 9;
+  const startDate = `${decadeStart}-01-01`;
+  const endDate   = `${decadeEnd}-12-31`;
+
+  const rawItems = [];
+  for (let page = 1; page <= 5; page++) {
+    const [movies, tv] = await Promise.all([
+      tmdbGet(`/discover/movie?sort_by=vote_count.desc&vote_count.gte=100&primary_release_date.gte=${startDate}&primary_release_date.lte=${endDate}&page=${page}`),
+      tmdbGet(`/discover/tv?sort_by=vote_count.desc&vote_count.gte=100&first_air_date.gte=${startDate}&first_air_date.lte=${endDate}&page=${page}`)
+    ]);
+    if (movies.results) rawItems.push(...movies.results.map(m => ({ ...m, media_type: 'movie' })));
+    if (tv.results)     rawItems.push(...tv.results.map(t => ({ ...t, media_type: 'tv' })));
+  }
+
+  const validItems = rawItems.filter(i => ['movie', 'tv'].includes(i.media_type));
+  if (validItems.length === 0) return 0;
+
+  const movieIds = validItems.filter(i => i.media_type === 'movie').map(i => i.id);
+  const tvIds    = validItems.filter(i => i.media_type === 'tv').map(i => i.id);
+  const freshSet = new Set();
+  const cutoff   = now - sevenDaysMs;
+
+  if (movieIds.length) {
+    const ph = movieIds.map(() => '?').join(',');
+    db.prepare(
+      `SELECT id FROM content WHERE media_type = 'movie' AND id IN (${ph}) AND last_updated > ?`
+    ).all(...movieIds, cutoff).forEach(r => freshSet.add(`movie:${r.id}`));
+  }
+  if (tvIds.length) {
+    const ph = tvIds.map(() => '?').join(',');
+    db.prepare(
+      `SELECT id FROM content WHERE media_type = 'tv' AND id IN (${ph}) AND last_updated > ?`
+    ).all(...tvIds, cutoff).forEach(r => freshSet.add(`tv:${r.id}`));
+  }
+
+  const needsDetail = [];
+  for (const item of validItems) {
+    upsertContent(db, item, now);
+    upsertGenres(db, item);
+    if (!freshSet.has(`${item.media_type}:${item.id}`)) {
+      needsDetail.push(item);
+    }
+  }
+
+  for (let i = 0; i < needsDetail.length; i += BATCH_SIZE) {
+    const batch = needsDetail.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(async item => {
+      const hasStreaming = await fetchAndStoreDetail(db, item.id, item.media_type, now);
+      setDisplayStatus(db, item.id, item.media_type, hasStreaming, item.release_date || item.first_air_date);
+    }));
+    if (i + BATCH_SIZE < needsDetail.length) await sleep(BATCH_DELAY_MS);
+  }
+
+  console.log(`[refresh] decade_catalogue: ${decadeStart}s — ${validItems.length} items (${needsDetail.length} detail fetches)`);
+  return validItems.length;
+}
+
 /**
  * Populate the catalogue with well-known content from each decade (1970s–2020s).
  * Queries TMDB /discover sorted by vote_count descending, 5 pages per decade per
@@ -328,65 +386,7 @@ async function refreshByDecade() {
     let totalCount = 0;
 
     for (const decadeStart of DECADES) {
-      const decadeEnd  = decadeStart + 9;
-      const startDate  = `${decadeStart}-01-01`;
-      const endDate    = `${decadeEnd}-12-31`;
-
-      // Fetch 5 pages of top-voted movies + TV for this decade
-      const rawItems = [];
-      for (let page = 1; page <= 5; page++) {
-        const [movies, tv] = await Promise.all([
-          tmdbGet(`/discover/movie?sort_by=vote_count.desc&vote_count.gte=100&primary_release_date.gte=${startDate}&primary_release_date.lte=${endDate}&page=${page}`),
-          tmdbGet(`/discover/tv?sort_by=vote_count.desc&vote_count.gte=100&first_air_date.gte=${startDate}&first_air_date.lte=${endDate}&page=${page}`)
-        ]);
-        if (movies.results) rawItems.push(...movies.results.map(m => ({ ...m, media_type: 'movie' })));
-        if (tv.results)     rawItems.push(...tv.results.map(t => ({ ...t, media_type: 'tv' })));
-      }
-
-      const validItems = rawItems.filter(i => ['movie', 'tv'].includes(i.media_type));
-      if (validItems.length === 0) continue;
-
-      // Bulk-identify items already in DB with a recent last_updated (skip detail fetch)
-      const movieIds = validItems.filter(i => i.media_type === 'movie').map(i => i.id);
-      const tvIds    = validItems.filter(i => i.media_type === 'tv').map(i => i.id);
-      const freshSet = new Set();
-      const cutoff   = now - SEVEN_DAYS_MS;
-
-      if (movieIds.length) {
-        const ph = movieIds.map(() => '?').join(',');
-        db.prepare(
-          `SELECT id FROM content WHERE media_type = 'movie' AND id IN (${ph}) AND last_updated > ?`
-        ).all(...movieIds, cutoff).forEach(r => freshSet.add(`movie:${r.id}`));
-      }
-      if (tvIds.length) {
-        const ph = tvIds.map(() => '?').join(',');
-        db.prepare(
-          `SELECT id FROM content WHERE media_type = 'tv' AND id IN (${ph}) AND last_updated > ?`
-        ).all(...tvIds, cutoff).forEach(r => freshSet.add(`tv:${r.id}`));
-      }
-
-      // Upsert all items (metadata), collect those needing a full detail fetch
-      const needsDetail = [];
-      for (const item of validItems) {
-        upsertContent(db, item, now);
-        upsertGenres(db, item);
-        if (!freshSet.has(`${item.media_type}:${item.id}`)) {
-          needsDetail.push(item);
-        }
-        totalCount++;
-      }
-
-      // Batch-process detail fetches for new / stale items
-      for (let i = 0; i < needsDetail.length; i += BATCH_SIZE) {
-        const batch = needsDetail.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map(async item => {
-          const hasStreaming = await fetchAndStoreDetail(db, item.id, item.media_type, now);
-          setDisplayStatus(db, item.id, item.media_type, hasStreaming, item.release_date || item.first_air_date);
-        }));
-        if (i + BATCH_SIZE < needsDetail.length) await sleep(BATCH_DELAY_MS);
-      }
-
-      console.log(`[refresh] decade_catalogue: ${decadeStart}s — ${validItems.length} items (${needsDetail.length} detail fetches)`);
+      totalCount += await refreshDecade(db, decadeStart, now, SEVEN_DAYS_MS);
     }
 
     logRefresh(db, 'decade_catalogue', 'success', totalCount);

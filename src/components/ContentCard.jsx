@@ -2,15 +2,33 @@ import PropTypes from 'prop-types'
 import { Film, Tv, Bookmark } from './icons'
 import { GENRES } from './FilterBar'
 import { itemShape } from '../propTypes'
+import { formatRuntime } from '../utils/formatRuntime'
 
 const GENRE_MAP = Object.fromEntries(GENRES.map(g => [g.id, g.name]))
 
-function formatRuntime(minutes) {
-  if (!minutes) return null
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`
+function NewPlatformBadge({ streaming }) {
+  const newPlatform = streaming?.find(s => s.isNew)
+  if (!newPlatform) return null
+  return (
+    <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">
+      New on {newPlatform.name}
+    </div>
+  )
 }
+NewPlatformBadge.propTypes = { streaming: PropTypes.array }
+
+function GenrePills({ genreIds }) {
+  const pills = (genreIds || []).map(id => GENRE_MAP[id]).filter(Boolean).slice(0, 2)
+  if (pills.length === 0) return null
+  return (
+    <div className="flex flex-wrap gap-1 mb-2">
+      {pills.map(name => (
+        <span key={name} className="text-xs text-gray-400 bg-gray-700/60 rounded px-1.5 py-0.5">{name}</span>
+      ))}
+    </div>
+  )
+}
+GenrePills.propTypes = { genreIds: PropTypes.array }
 
 /**
  * Content card for the main grid.
@@ -25,6 +43,9 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
     return (
       <div
         onClick={() => onClick(item)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') onClick(item) }}
         className="bg-gray-800 rounded-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 cursor-pointer"
       >
         {item.poster_path
@@ -72,6 +93,9 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
   return (
     <div
       onClick={() => onClick(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') onClick(item) }}
       className="bg-gray-800 rounded-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 cursor-pointer"
     >
       <div className="relative">
@@ -89,14 +113,7 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
               {isMovie ? <Film className="w-12 h-12 text-gray-600" /> : <Tv className="w-12 h-12 text-gray-600" />}
             </div>
         }
-        {(() => {
-          const newPlatform = item.streaming?.find(s => s.isNew)
-          return newPlatform && (
-            <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">
-              New on {newPlatform.name}
-            </div>
-          )
-        })()}
+        <NewPlatformBadge streaming={item.streaming} />
         {onWatchlistToggle && (
           <button
             onClick={(e) => { e.stopPropagation(); onWatchlistToggle(item) }}
@@ -125,7 +142,7 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
           )}
           {item.number_of_seasons && (
             <span className="text-xs text-gray-400">
-              {item.number_of_seasons} Season{item.number_of_seasons !== 1 ? 's' : ''}
+              {item.number_of_seasons} Season{item.number_of_seasons === 1 ? '' : 's'}
             </span>
           )}
           {item.certification && (
@@ -140,16 +157,7 @@ export default function ContentCard({ item, onClick, variant = 'default', watchl
             </span>
           )}
         </div>
-        {(() => {
-          const pills = (item.genre_ids || []).map(id => GENRE_MAP[id]).filter(Boolean).slice(0, 2)
-          return pills.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {pills.map(name => (
-                <span key={name} className="text-xs text-gray-400 bg-gray-700/60 rounded px-1.5 py-0.5">{name}</span>
-              ))}
-            </div>
-          )
-        })()}
+        <GenrePills genreIds={item.genre_ids} />
         {item.streaming && item.streaming.length > 0
           ? <div>
               <p className="text-xs text-gray-400 mb-2">Available on:</p>

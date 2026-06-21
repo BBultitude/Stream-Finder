@@ -38,7 +38,7 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # ── Data directory ────────────────────────────────────────────────────────────
 # In production, mount a Docker volume here: -v /host/path:/data
-RUN mkdir -p /data
+RUN mkdir -p /data && chown -R node:node /app/backend /data
 
 EXPOSE 80
 

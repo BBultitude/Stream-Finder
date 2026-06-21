@@ -6,6 +6,10 @@ import { fetchDetail } from '../services/apiService'
 import { updateWatchlistItem } from '../services/watchlistService'
 import { itemShape } from '../propTypes'
 
+function applyFreshItem(prev, targetItem, updatedItem) {
+  return prev.map(i => (i.media_type === targetItem.media_type && i.id === targetItem.id) ? updatedItem : i)
+}
+
 export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatchlistToggle, onClearAll }) {
   // Initialise display from stored items; refreshed in background on mount
   const [displayItems, setDisplayItems] = useState(items)
@@ -27,9 +31,7 @@ export default function WatchlistTab({ items, watchlistKeys, onItemClick, onWatc
           display_status: fresh.display_status ?? item.display_status
         }
 
-        setDisplayItems(prev =>
-          prev.map(i => (i.media_type === item.media_type && i.id === item.id) ? updated : i)
-        )
+        setDisplayItems(prev => applyFreshItem(prev, item, updated))
         await updateWatchlistItem(updated)
       } catch {
         // Silent — stale stored data is better than an error state

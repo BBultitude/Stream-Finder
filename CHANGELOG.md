@@ -5,6 +5,47 @@ All notable changes to Stream Finder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.2] - 2026-06-21
+
+### Security
+- Dockerfile + supervisord.conf: Node.js backend process now runs as non-root `node` user — `/app/backend` and `/data` ownership transferred via `chown` at build time
+
+### Fixed
+- `DetailModal.jsx`: leaked conditional — `{releaseYear && ...}` replaced with `{releaseYear !== null && ...}` to prevent rendering `0` in edge cases
+- `App.jsx`, `DetailModal.jsx`: skeleton placeholder React keys now use string prefixes (`skel-top10-*`, `skel-card-*`, `skel-rec-*`) to satisfy stable-key requirement
+- `App.jsx`: `window.confirm` → `globalThis.confirm`
+- `App.jsx`, `ContentCard.jsx`, `DetailModal.jsx`, `apiService.js`: all negated equality conditions (`!== 'all'`, `!== 'popularity'`, `!== 1`) flipped to positive form
+- `icons.jsx`: PropTypes declarations added to all 13 icon components
+
+### Changed
+- `src/utils/formatRuntime.js`: extracted shared runtime formatter (was duplicated in ContentCard and DetailModal); nested ternary replaced with if/else branches
+- `App.jsx`: `filterContent` and `getRawTabContent` extracted to module scope — eliminates 7-line chained ternary for `displayContent` and reduces cognitive complexity of `App()`; tab section heading uses object lookup instead of nested ternary
+- `App.jsx`: `handleDeleteHistory` extracted as named handler — removes 5-level function nesting in search history JSX
+- `ContentCard.jsx`: `NewPlatformBadge` and `GenrePills` extracted as named sub-components — removes IIFE blocks and reduces cognitive complexity
+- `WatchlistTab.jsx`: `applyFreshItem` extracted as module-level helper — removes 5-level function nesting in the refresh `useEffect`
+- `backend/jobs/refresh.js`: `refreshDecade()` extracted from `refreshByDecade()` — reduces `refreshByDecade` cognitive complexity from 26 to ~4
+- `ComingSoonCard.jsx`, `ContentCard.jsx`, `FilterSheet.jsx`, `Top10List.jsx`: interactive `<div>` elements now have `role="button"`, `tabIndex={0}`, and `onKeyDown` keyboard handlers
+
+## [11.1] - 2026-06-21
+
+### Added
+- `src/propTypes.js`: shared PropTypes shape definitions (`itemShape`, `streamingEntryShape`, `castMemberShape`)
+- PropTypes declarations added to all components: ContentCard, DetailModal, FilterBar, FilterSheet, ComingSoonTab, Top10List, WatchlistTab, BottomNav, TabNav, ComingSoonCard
+
+### Fixed
+- ContentCard, DetailModal, Top10List: streaming logo maps used array index as React key — replaced with stable service name key
+- `backend/routes/detail.js`: `parseInt` → `Number.parseInt`; all silent `.catch(() => ({}))` blocks in `Promise.all` and `fetchRecommendations` now log via `console.warn`
+- `backend/utils/displayStatus.js`: `isNaN` → `Number.isNaN`
+- `backend/db.js`: swallowed migration catch now logs `err.message` instead of silently ignoring all errors
+- `backend/routes/search.js`: `!query || !query.trim()` → `!query?.trim()`
+- `src/App.jsx`: negated early-return guard in `handleClearWatchlist` flipped to positive form
+- `vite.config.js`: `manualChunks` object literal replaced with function — required by Vite 8 / rolldown (breaking change from Vite 5)
+
+### Technical
+- Dockerfile: merged consecutive `RUN npm install --production` + `RUN apk del` into a single layer
+- Dockerfile: frontend builder now copies `package-lock.json` and uses `npm ci` — ensures Docker uses the same dependency versions as local
+- Dockerfile: `ARG VITE_APP_URL` given a default value — prevents `%VITE_APP_URL%` resolving to `/` in CI builds, which caused Vite 8/rolldown to attempt reading the build directory as a file (EISDIR)
+
 ## [11.0] - 2026-06-21
 
 ### Added

@@ -20,6 +20,9 @@ export default function ComingSoonCard({ item, onClick, watchlistKeys, onWatchli
   return (
     <div
       onClick={() => onClick(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') onClick(item) }}
       className="bg-gray-800 rounded-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 cursor-pointer"
     >
       <div className="relative">

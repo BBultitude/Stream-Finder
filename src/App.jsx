@@ -23,6 +23,44 @@ function deduplicateById(items) {
   })
 }
 
+function filterContent(content, { selectedGenres, selectedContentType, selectedDecade, selectedMinRating }) {
+  let filtered = content
+  if (selectedGenres.length > 0) {
+    filtered = filtered.filter(item =>
+      item.genre_ids?.some(gid => selectedGenres.includes(gid))
+    )
+  }
+  if (selectedContentType !== 'all') {
+    filtered = filtered.filter(item => item.media_type === selectedContentType)
+  }
+  if (selectedDecade !== null) {
+    filtered = filtered.filter(item => {
+      const dateStr = item.release_date || item.first_air_date
+      if (!dateStr) return false
+      const year = new Date(dateStr).getFullYear()
+      return year >= selectedDecade && year <= selectedDecade + 9
+    })
+  }
+  if (selectedMinRating > 0) {
+    filtered = filtered.filter(item => item.vote_average >= selectedMinRating)
+  }
+  return deduplicateById(filtered)
+}
+
+function getRawTabContent(activeTab, { searchQuery, results, trendingContent, newReleases, top10Content, browseAll }) {
+  if (searchQuery) return results
+  if (activeTab === 'watchlist' || activeTab === 'coming-soon') return []
+  if (activeTab === 'trending') return trendingContent
+  if (activeTab === 'new') return newReleases
+  if (activeTab === 'top10') return top10Content
+  return browseAll
+}
+
+const TAB_HEADINGS = {
+  trending: "🔥 What's Hot This Week",
+  new: "✨ New Releases",
+}
+
 export default function App() {
   const [searchQuery, setSearchQuery]         = useState('')
   const [results, setResults]                 = useState([])
@@ -237,7 +275,9 @@ export default function App() {
   }
 
   const handleClearWatchlist = async () => {
-    if (window.confirm(`Clear all ${watchlist.length} item${watchlist.length !== 1 ? 's' : ''} from your watchlist?`)) {
+    const count = watchlist.length
+    const label = count === 1 ? 'item' : 'items'
+    if (globalThis.confirm(`Clear all ${count} ${label} from your watchlist?`)) {
       await clearWatchlist().catch(() => {})
       setWatchlist([])
     }
@@ -264,38 +304,15 @@ export default function App() {
     }
   }
 
-  const filterContent = (content) => {
-    let filtered = content
-    if (selectedGenres.length > 0) {
-      filtered = filtered.filter(item =>
-        item.genre_ids?.some(gid => selectedGenres.includes(gid))
-      )
-    }
-    if (selectedContentType !== 'all') {
-      filtered = filtered.filter(item => item.media_type === selectedContentType)
-    }
-    if (selectedDecade !== null) {
-      filtered = filtered.filter(item => {
-        const dateStr = item.release_date || item.first_air_date
-        if (!dateStr) return false
-        const year = new Date(dateStr).getFullYear()
-        return year >= selectedDecade && year <= selectedDecade + 9
-      })
-    }
-    if (selectedMinRating > 0) {
-      filtered = filtered.filter(item => item.vote_average >= selectedMinRating)
-    }
-    return deduplicateById(filtered)
+  const handleDeleteHistory = (query) => {
+    removeFromSearchHistory(query).catch(() => {})
+    setSearchHistory(prev => prev.filter(q => q !== query))
   }
 
-  const displayContent = searchQuery
-    ? filterContent(results)
-    : activeTab === 'trending'    ? filterContent(trendingContent)
-    : activeTab === 'new'         ? filterContent(newReleases)
-    : activeTab === 'top10'       ? filterContent(top10Content)
-    : activeTab === 'watchlist'   ? []
-    : activeTab === 'coming-soon' ? []
-    : filterContent(browseAll)
+  const displayContent = filterContent(
+    getRawTabContent(activeTab, { searchQuery, results, trendingContent, newReleases, top10Content, browseAll }),
+    { selectedGenres, selectedContentType, selectedDecade, selectedMinRating }
+  )
 
   const handleClearFilters = () => {
     setSelectedServices([])
@@ -398,10 +415,7 @@ export default function App() {
                         {query}
                       </button>
                       <button
-                        onClick={() => {
-                          removeFromSearchHistory(query).catch(() => {})
-                          setSearchHistory(prev => prev.filter(q => q !== query))
-                        }}
+                        onClick={() => handleDeleteHistory(query)}
                         className="text-gray-600 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
                       >
                         ×
@@ -488,7 +502,7 @@ export default function App() {
           <>
             <h2 className="text-2xl font-bold mb-6 text-white">🏆 Top 10 in Australia</h2>
             <div className="space-y-3 max-w-3xl mx-auto">
-              {Array.from({ length: 10 }).map((_, i) => <SkeletonTop10Row key={i} />)}
+              {Array.from({ length: 10 }).map((_, i) => <SkeletonTop10Row key={`skel-top10-${i}`} />)}
             </div>
           </>
         )}
@@ -504,7 +518,7 @@ export default function App() {
         {/* Grid skeleton */}
         {loading && activeTab !== 'top10' && activeTab !== 'watchlist' && activeTab !== 'coming-soon' && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}
+            {Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={`skel-card-${i}`} />)}
           </div>
         )}
 
@@ -516,9 +530,7 @@ export default function App() {
             )}
             {!searchQuery && (
               <h2 className="text-2xl font-bold mb-6 text-white">
-                {activeTab === 'trending' ? "🔥 What's Hot This Week"
-                  : activeTab === 'new' ? "✨ New Releases"
-                  : "🎬 Browse All Content"}
+                {TAB_HEADINGS[activeTab] ?? "🎬 Browse All Content"}
               </h2>
             )}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">

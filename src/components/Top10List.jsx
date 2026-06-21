@@ -17,6 +17,9 @@ export default function Top10List({ items, onItemClick }) {
         <div
           key={item.id}
           onClick={() => onItemClick(item)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') onItemClick(item) }}
           className="flex items-center gap-4 bg-gray-800 rounded-xl p-3 hover:bg-gray-700 border border-gray-700 hover:border-purple-500 cursor-pointer transition-all"
         >
           <span className="text-4xl font-black w-12 text-center flex-shrink-0 text-gray-600 select-none">
