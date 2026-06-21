@@ -1,20 +1,4 @@
-'use strict'
-
-/**
- * IMP-02 — Persistent IndexedDB cache for backend API responses.
- *
- * TTLs per endpoint:
- *   /api/new          → 12 hours
- *   /api/trending     → 6 hours
- *   /api/browse       → 6 hours
- *   /api/top10        → 6 hours
- *   /api/coming-soon  → 6 hours
- *   /api/providers    → 24 hours
- *   (default)         → 6 hours
- *
- * Gracefully degrades to no-cache if IndexedDB is unavailable.
- * LRU eviction: prunes 10 oldest entries when store exceeds MAX_ENTRIES.
- */
+import { createOpenDb } from './idbUtils.js'
 
 const DB_NAME = 'streamfinder-cache'
 const DB_VERSION = 1
@@ -37,25 +21,7 @@ function getTtl(url) {
   return 6 * 3600 * 1000
 }
 
-let dbPromise = null
-
-function openDb() {
-  if (!dbPromise) {
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION)
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result
-        if (!db.objectStoreNames.contains(STORE)) {
-          const store = db.createObjectStore(STORE, { keyPath: 'url' })
-          store.createIndex('timestamp', 'timestamp')
-        }
-      }
-      req.onsuccess = (e) => resolve(e.target.result)
-      req.onerror  = (e) => reject(e.target.error)
-    })
-  }
-  return dbPromise
-}
+const openDb = createOpenDb(DB_NAME, DB_VERSION, STORE, 'url')
 
 export async function cacheGet(url) {
   try {

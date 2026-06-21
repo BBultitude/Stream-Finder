@@ -96,7 +96,9 @@ function initSchema() {
     try {
       db.exec(col);
       console.log('[db] migration applied:', col.split('COLUMN ')[1].split(' ')[0]);
-    } catch (_err) { /* duplicate column = already applied */ }
+    } catch (err) {
+      if (!err.message.includes('duplicate column name')) throw err;
+    }
   }
 }
 

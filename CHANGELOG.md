@@ -5,6 +5,18 @@ All notable changes to Stream Finder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5] - 2026-06-21
+
+### Fixed
+- `backend/db.js`: migration catch block now re-throws any non-"duplicate column name" error instead of silently swallowing all exceptions (SonarQube S2486)
+- `src/App.jsx`: filter-count ternary `!== null ? 1 : 0` → `=== null ? 0 : 1` to match surrounding positive-condition pattern (SonarQube S7735)
+
+### Changed
+- `src/services/idbUtils.js` (new): extracted shared `createOpenDb()` factory — eliminates 19-line duplicate `openDb()` implementation that existed in both `cacheService.js` and `searchHistoryService.js`
+- `src/components/FilterBar.jsx`: shared filter props extracted into exported `filterPropTypes`; `FilterSheet.jsx` spreads it, eliminating 17-line duplicate propTypes block
+
+---
+
 ## [11.4] - 2026-06-21
 
 ### Added
@@ -23,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `backend/routes/languages.js`: added `PRAGMA table_info` guard before querying `original_language` — prevents "no such column" 500 on DBs where the column migration had not yet applied; catch block now returns 200 (not 500) so the frontend never errors on this endpoint
 - `backend/db.js`: added `original_language TEXT` directly to the `CREATE TABLE IF NOT EXISTS content` schema (belt-and-suspenders for fresh DBs); migration loop now logs each column it applies so startup state is visible in Docker logs
 - `backend/jobs/refresh.js`: `runInitialRefreshIfNeeded` now detects streaming items with NULL `original_language` and kicks off a background `refreshTrending()` to back-fill the column immediately after deployment — language filter populated within seconds rather than waiting up to 6 hours for the next cron tick
+- `src/services/apiService.js`: `fetchLanguages()` now uses a direct `fetch()` instead of `fetchCached()` — bypasses the 6-hour IndexedDB TTL that was caching empty language responses and keeping the filter hidden after the back-fill ran
+- `backend/jobs/refresh.js`: `fetchAndStoreDetail` UPDATE now writes `original_language = COALESCE(original_language, ?)` from the TMDB detail response — the daily streaming availability sweep back-fills language for all existing content, not just trending/new items
+- `backend/jobs/refresh.js`: exported `refreshTrending` and `refreshStreamingAvailability` — allows on-demand DB back-fill via `docker exec` without waiting for the next cron tick
 
 ---
 

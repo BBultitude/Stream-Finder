@@ -1,34 +1,11 @@
-'use strict'
-
-/**
- * IMP-07 — Persistent search history using IndexedDB.
- * Stores the last MAX_HISTORY unique search queries, most-recent first.
- */
+import { createOpenDb } from './idbUtils.js'
 
 const DB_NAME = 'streamfinder-history'
 const DB_VERSION = 1
 const STORE = 'searches'
 const MAX_HISTORY = 10
 
-let dbPromise = null
-
-function openDb() {
-  if (!dbPromise) {
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION)
-      req.onupgradeneeded = (e) => {
-        const db = e.target.result
-        if (!db.objectStoreNames.contains(STORE)) {
-          const store = db.createObjectStore(STORE, { keyPath: 'query' })
-          store.createIndex('timestamp', 'timestamp')
-        }
-      }
-      req.onsuccess = (e) => resolve(e.target.result)
-      req.onerror  = (e) => reject(e.target.error)
-    })
-  }
-  return dbPromise
-}
+const openDb = createOpenDb(DB_NAME, DB_VERSION, STORE, 'query')
 
 export async function getSearchHistory() {
   try {

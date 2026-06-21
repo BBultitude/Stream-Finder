@@ -887,6 +887,28 @@ Also fixes two bugs in the What's New section:
 
 ---
 
+### IMP-24 — SonarQube Code Quality Fixes
+
+**Category:** Technical / Maintenance
+
+**Description:** Resolved all open SonarQube findings to clear the quality gate (was failing on `new_violations: 2` and `new_duplicated_lines_density: 3.43%` against a 3% threshold):
+- `backend/db.js`: migration catch block now re-throws any non-"duplicate column name" error instead of silently swallowing all exceptions (S2486)
+- `src/App.jsx`: filter count ternary changed from `!== null ? 1 : 0` to `=== null ? 0 : 1` to match surrounding positive-condition pattern (S7735)
+- `src/services/idbUtils.js` (new): shared `createOpenDb(dbName, dbVersion, storeName, keyPath)` factory eliminates 19-line duplicate `openDb()` implementation between `cacheService.js` and `searchHistoryService.js`
+- `src/components/FilterBar.jsx`: shared filter propTypes extracted into exported `filterPropTypes` object; `FilterSheet.jsx` spreads it, eliminating 17-line duplicate propTypes block
+
+**Status:** COMPLETE (implemented 2026-06-21)
+
+**Dependencies:** None
+
+**Acceptance Criteria (met):**
+- SonarQube quality gate: PASSED
+- `new_violations`: 0
+- `new_duplicated_lines_density`: below 3%
+- Vite build succeeds with no errors
+
+---
+
 ## 4. Sequencing
 
 | Order | Item | Rationale |
@@ -914,6 +936,7 @@ Also fixes two bugs in the What's New section:
 | 21 | IMP-21 — FilterSheet Compact Redesign | UI polish; depends on IMP-13 |
 | 22 | IMP-20 — Age Rating Filter | New filter capability; depends on IMP-03 and IMP-13 |
 | 23 | IMP-23 — Dynamic Language / Region Filter | COMPLETE — data-driven include filter; replaced exclude-based static list |
+| 24 | IMP-24 — SonarQube Code Quality | COMPLETE — cleared quality gate; fixed empty catch, negated condition, and two duplication blocks |
 
 
 

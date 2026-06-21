@@ -323,7 +323,7 @@ export default function FilterBar({
   )
 }
 
-FilterBar.propTypes = {
+export const filterPropTypes = {
   selectedServices: PropTypes.arrayOf(PropTypes.string).isRequired,
   onServiceToggle: PropTypes.func.isRequired,
   selectedGenres: PropTypes.arrayOf(PropTypes.number).isRequired,
@@ -341,6 +341,10 @@ FilterBar.propTypes = {
   availableLanguages: PropTypes.arrayOf(PropTypes.shape({ code: PropTypes.string, count: PropTypes.number })),
   onClearAll: PropTypes.func.isRequired,
   onSurpriseMe: PropTypes.func.isRequired,
+}
+
+FilterBar.propTypes = {
+  ...filterPropTypes,
   activeTab: PropTypes.string,
   sortBy: PropTypes.string,
   onSortChange: PropTypes.func,

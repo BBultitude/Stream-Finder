@@ -461,7 +461,7 @@ export default function App() {
                     (selectedDecade === null ? 0 : 1) +
                     (selectedMinRating > 0 ? 1 : 0) +
                     (selectedMaxCertification === null ? 0 : 1) +
-                    (selectedLanguageFilter !== null ? 1 : 0)}
+                    (selectedLanguageFilter === null ? 0 : 1)}
                 </span>
               )}
             </button>
