@@ -94,8 +94,14 @@ export async function fetchRandom({ type, providers, decade, maxCertification, l
 }
 
 export async function fetchLanguages() {
-  const data = await fetchCached('/api/languages')
-  return data.languages || []
+  try {
+    const res = await fetch('/api/languages')
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.languages || []
+  } catch {
+    return []
+  }
 }
 
 // Detail uses server-side cache; not cached client-side
