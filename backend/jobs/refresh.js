@@ -472,4 +472,4 @@ function startCronJobs() {
   console.log('[refresh] Cron jobs scheduled (trending 6h, new_releases 12h, streaming 03:00 daily, decade_catalogue Sun 04:00)');
 }
 
-module.exports = { runInitialRefreshIfNeeded, startCronJobs };
+module.exports = { runInitialRefreshIfNeeded, startCronJobs, refreshTrending };
