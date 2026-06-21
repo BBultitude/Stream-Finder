@@ -150,9 +150,11 @@ async function fetchAndStoreDetail(db, contentId, mediaType, now) {
           number_of_seasons  = ?,
           number_of_episodes = ?,
           certification      = ?,
+          original_language  = COALESCE(original_language, ?),
           last_updated       = ?
       WHERE id = ? AND media_type = ?
-    `).run(runtime, numberOfSeasons, numberOfEpisodes, certification, now, contentId, mediaType);
+    `).run(runtime, numberOfSeasons, numberOfEpisodes, certification,
+           data.original_language || null, now, contentId, mediaType);
 
     const upsertProvider = db.prepare(`
       INSERT INTO providers (provider_id, provider_name, logo_path)
@@ -472,4 +474,4 @@ function startCronJobs() {
   console.log('[refresh] Cron jobs scheduled (trending 6h, new_releases 12h, streaming 03:00 daily, decade_catalogue Sun 04:00)');
 }
 
-module.exports = { runInitialRefreshIfNeeded, startCronJobs, refreshTrending };
+module.exports = { runInitialRefreshIfNeeded, startCronJobs, refreshTrending, refreshStreamingAvailability };
