@@ -2,12 +2,12 @@
 # Vite + React + Tailwind — build tools stay in this stage only
 FROM node:20-alpine AS frontend-builder
 WORKDIR /build
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY index.html vite.config.js tailwind.config.js postcss.config.js ./
 COPY src/ ./src/
 COPY public/ ./public/
-ARG VITE_APP_URL
+ARG VITE_APP_URL=https://stream-finder.brydel.net
 ENV VITE_APP_URL=$VITE_APP_URL
 RUN npm run build
 
