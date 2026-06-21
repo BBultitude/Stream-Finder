@@ -862,6 +862,31 @@ Leaves all sections          → unavailable (older than 90 days, no streaming)
 
 ---
 
+### IMP-23 — Dynamic Language / Region Filter
+
+**Category:** Feature / UX
+
+**Description:**
+Replaces the static hardcoded language filter (which included a broken "Mainstream" exclude operation masquerading as an include) with a data-driven include filter. A new `/api/languages` endpoint returns which `original_language` values are actually present in the DB for streaming content, ordered by frequency. FilterBar and FilterSheet render language buttons dynamically, mapped to human-readable labels (Japanese, Hindi, Korean, etc.) with ISO code fallback for unknowns. All filter buttons are true positive include filters — selecting "Korean" returns only Korean content.
+
+Also fixes two bugs in the What's New section:
+- Added `sa.type = 'flatrate'` to the `new.js` JOIN so rent/buy-only content no longer appears without a "New on Platform" badge
+- Replaced `SELECT DISTINCT ... ORDER BY sa.first_seen DESC` with `GROUP BY c.id, c.media_type ORDER BY MAX(sa.first_seen) DESC` to fix ambiguous ordering
+
+**Status:** COMPLETE (implemented 2026-06-21)
+
+**Dependencies:** IMP-03 (backend DB with `original_language` column populated by refresh jobs)
+
+**Acceptance Criteria (met):**
+- `GET /api/languages` returns distinct `original_language` values with counts, ordered by frequency
+- Language filter buttons rendered dynamically — no hardcoded list maintenance required
+- All filter values are positive include filters; selecting `ko` returns only Korean content
+- Unknown ISO codes fall back to uppercase display (e.g. `nb` → `NB`)
+- What's New section: every card shows "New on [Platform]" badge (flatrate-only content)
+- What's New section: ordered by most recently added flatrate availability
+
+---
+
 ## 4. Sequencing
 
 | Order | Item | Rationale |
@@ -888,6 +913,7 @@ Leaves all sections          → unavailable (older than 90 days, no streaming)
 | 20 | IMP-19 — Coming Soon Segmented Control | UI polish; depends on IMP-18 |
 | 21 | IMP-21 — FilterSheet Compact Redesign | UI polish; depends on IMP-13 |
 | 22 | IMP-20 — Age Rating Filter | New filter capability; depends on IMP-03 and IMP-13 |
+| 23 | IMP-23 — Dynamic Language / Region Filter | COMPLETE — data-driven include filter; replaced exclude-based static list |
 
 
 

@@ -5,6 +5,25 @@ All notable changes to Stream Finder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4] - 2026-06-21
+
+### Added
+- `backend/routes/languages.js`: new `GET /api/languages` endpoint returns distinct `original_language` values from streaming content, ordered by frequency — powers dynamic language filter
+- `src/services/apiService.js`: `fetchLanguages()` fetches available language options on app mount
+
+### Changed
+- Language filter redesigned: static hardcoded list (including broken "Mainstream" exclude) replaced with data-driven include filter; `LANGUAGE_FILTERS` removed from FilterBar, replaced with `LANGUAGE_LABELS` map + dynamic `availableLanguages` prop
+- Language labels use language/region name (Japanese, Hindi, Korean, French) not genre/industry shorthand (Anime, Bollywood) — `ja` is "Japanese", `hi` is "Hindi"
+- Min rating filter relabeled "Min Score" with ★ prefix on buttons (★ 6+, ★ 7+, ★ 8+) to match the ★ score format shown on content cards
+- `backend/utils/certOrder.js`: `buildLanguageFilterClause` simplified — removed `MAINSTREAM_EXCLUDE` constant and exclude logic; all filters now use `AND original_language = ?`
+
+### Fixed
+- `backend/routes/new.js`: added `AND sa.type = 'flatrate'` to JOIN conditions — rent/buy-only content no longer appears in What's New without a "New on Platform" badge
+- `backend/routes/new.js`: replaced `SELECT DISTINCT ... ORDER BY sa.first_seen DESC` with `GROUP BY c.id, c.media_type ORDER BY MAX(sa.first_seen) DESC` — resolves ambiguous SQLite ordering when content has multiple streaming availability rows
+- `backend/routes/languages.js`: renamed `COUNT(*) AS count` alias to `item_count` — avoids SQLite aggregate function name ambiguity on Alpine Linux; improved error logging to `err.stack`
+
+---
+
 ## [11.3] - 2026-06-21
 
 ### Fixed

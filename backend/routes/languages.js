@@ -9,16 +9,16 @@ router.get('/', (req, res) => {
   try {
     const db = getDb();
     const rows = db.prepare(`
-      SELECT original_language AS code, COUNT(*) AS count
+      SELECT original_language AS code, COUNT(*) AS item_count
       FROM content
       WHERE display_status = 'streaming'
         AND original_language IS NOT NULL
       GROUP BY original_language
-      ORDER BY count DESC
+      ORDER BY item_count DESC
     `).all();
     res.json({ languages: rows });
   } catch (err) {
-    console.error('[GET /api/languages]', err.message);
+    console.error('[GET /api/languages]', err.stack || err.message);
     res.status(500).json({ languages: [] });
   }
 });

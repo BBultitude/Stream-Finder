@@ -141,9 +141,9 @@ export default function FilterSheet({
             </div>
           </div>
 
-          {/* Min rating */}
+          {/* Min score */}
           <div>
-            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Min Rating</p>
+            <p className="text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Min Score</p>
             <div className="flex flex-wrap gap-1.5">
               {RATING_OPTIONS.map(({ id, label }) => (
                 <button

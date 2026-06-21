@@ -40,9 +40,9 @@ export const DECADES = [
 
 export const RATING_OPTIONS = [
   { id: 0, label: 'Any' },
-  { id: 6, label: '6+' },
-  { id: 7, label: '7+' },
-  { id: 8, label: '8+' },
+  { id: 6, label: '★ 6+' },
+  { id: 7, label: '★ 7+' },
+  { id: 8, label: '★ 8+' },
 ]
 
 const CONTENT_TYPES = [
@@ -215,9 +215,9 @@ export default function FilterBar({
         ))}
       </div>
 
-      {/* Min rating */}
+      {/* Min score */}
       <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-sm text-gray-300">Min Rating:</span>
+        <span className="text-sm text-gray-300">Min Score:</span>
         {RATING_OPTIONS.map(({ id, label }) => (
           <button
             key={id}
