@@ -424,7 +424,7 @@ async function runInitialRefreshIfNeeded() {
     const cols = db.prepare('PRAGMA table_info(content)').all();
     if (cols.some(c => c.name === 'original_language')) {
       const { nullCount } = db.prepare(
-        'SELECT COUNT(*) AS nullCount FROM content WHERE original_language IS NULL AND display_status = "streaming"'
+        "SELECT COUNT(*) AS nullCount FROM content WHERE original_language IS NULL AND display_status = 'streaming'"
       ).get();
       if (nullCount > 0) {
         console.log(`[refresh] ${nullCount} streaming items missing original_language — queuing background trending refresh`);
