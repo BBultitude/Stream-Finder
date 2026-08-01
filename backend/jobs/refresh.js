@@ -183,6 +183,11 @@ async function fetchAndStoreDetail(db, contentId, mediaType, now) {
     }
     return hasAuFlatrate;
   } catch (err) {
+    if (err.message.includes('HTTP 404')) {
+      db.prepare('DELETE FROM streaming_availability WHERE content_id = ? AND content_media_type = ?').run(contentId, mediaType);
+      console.log(`[refresh] TMDB 404 — cleared streaming data for ${mediaType}/${contentId}`);
+      return false;
+    }
     console.error(`[refresh] Detail fetch failed for ${mediaType}/${contentId}: ${err.message}`);
     return false;
   }

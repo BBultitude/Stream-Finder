@@ -14,7 +14,10 @@ const AU_PROVIDERS = [
   { provider_id: 531,  provider_name: 'Paramount Plus',     logo_path: null },
   { provider_id: 337,  provider_name: 'Disney Plus',        logo_path: null },
   { provider_id: 385,  provider_name: 'Binge',              logo_path: null },
-  { provider_id: 1899, provider_name: 'Max',                logo_path: null }
+  { provider_id: 1899, provider_name: 'Max',                logo_path: null },
+  { provider_id: 350,  provider_name: 'Apple TV Plus',      logo_path: null },
+  { provider_id: 130,  provider_name: 'Foxtel Now',         logo_path: null },
+  { provider_id: 151,  provider_name: 'BritBox',            logo_path: null }
 ];
 
 /**

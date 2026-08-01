@@ -10,6 +10,9 @@ export const STREAMING_SERVICES = [
   { id: 'disney',    name: 'Disney+',     providerIds: [337],             color: 'bg-blue-600' },
   { id: 'binge',     name: 'Binge',       providerIds: [385, 134],        color: 'bg-orange-500' },
   { id: 'max',       name: 'Max',         providerIds: [1899],            color: 'bg-purple-700' },
+  { id: 'appletv',   name: 'Apple TV+',   providerIds: [350],             color: 'bg-gray-800'   },
+  { id: 'foxtel',    name: 'Foxtel Now',  providerIds: [130],             color: 'bg-red-700'    },
+  { id: 'britbox',   name: 'BritBox',     providerIds: [151],             color: 'bg-yellow-600' },
 ]
 
 export const GENRES = [
