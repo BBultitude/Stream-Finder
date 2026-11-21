@@ -10,7 +10,7 @@ function NewPlatformBadge({ streaming }) {
   const newPlatform = streaming?.find(s => s.isNew)
   if (!newPlatform) return null
   return (
-    <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">
+    <div className="absolute top-2 left-2 max-w-[calc(100%-3.5rem)] px-1.5 py-0.5 bg-green-700 rounded text-[10px] font-semibold text-white leading-tight">
       New on {newPlatform.name}
     </div>
   )
@@ -37,14 +37,14 @@ function CompactCard({ item, onClick, priority }) {
     <button
       type="button"
       onClick={() => onClick(item)}
-      className="w-full text-left bg-gray-800 rounded-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 cursor-pointer"
+      className="w-full text-left bg-gray-800 rounded-xl overflow-hidden hover:scale-105 motion-reduce:hover:scale-100 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 cursor-pointer"
     >
       {item.poster_path
         ? <img
             src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
             srcSet={`https://image.tmdb.org/t/p/w342${item.poster_path} 342w, https://image.tmdb.org/t/p/w500${item.poster_path} 500w, https://image.tmdb.org/t/p/w780${item.poster_path} 780w`}
             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
-            alt={displayName}
+            alt=""
             className="w-full aspect-[2/3] object-cover"
             loading={priority ? 'eager' : 'lazy'}
             fetchPriority={priority ? 'high' : 'auto'}
@@ -93,15 +93,15 @@ function DefaultCard({ item, onClick, isSaved, onWatchlistToggle, priority }) {
     // Outer wrapper provides visual styling and hover effects.
     // The inner <button> is the card action; the watchlist <button> is a sibling
     // (not nested) to avoid invalid HTML of <button> inside <button>.
-    <div className="relative bg-gray-800 rounded-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 focus-within:border-purple-500 cursor-pointer">
-      <button type="button" onClick={() => onClick(item)} className="w-full text-left block focus:outline-none">
+    <div className="relative bg-gray-800 rounded-xl overflow-hidden hover:scale-105 motion-reduce:hover:scale-100 hover:shadow-2xl transition-all duration-300 border border-gray-700 hover:border-purple-500 focus-within:border-purple-500 cursor-pointer">
+      <button type="button" onClick={() => onClick(item)} className="w-full text-left block focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-400">
         <div className="relative">
           {item.poster_path
             ? <img
                 src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
                 srcSet={`https://image.tmdb.org/t/p/w342${item.poster_path} 342w, https://image.tmdb.org/t/p/w500${item.poster_path} 500w, https://image.tmdb.org/t/p/w780${item.poster_path} 780w`}
                 sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
-                alt={displayName}
+                alt=""
                 className="w-full aspect-[2/3] object-cover"
                 loading={priority ? 'eager' : 'lazy'}
                 fetchPriority={priority ? 'high' : 'auto'}
@@ -155,7 +155,7 @@ function DefaultCard({ item, onClick, isSaved, onWatchlistToggle, priority }) {
                 </div>
               </div>
             : item.display_status !== 'in_cinemas' && (
-                <p className="text-xs text-gray-500 italic">No streaming info</p>
+                <p className="text-xs text-gray-400 italic">No streaming info</p>
               )
           }
         </div>
@@ -170,6 +170,8 @@ function DefaultCard({ item, onClick, isSaved, onWatchlistToggle, priority }) {
               : 'bg-black/60 text-gray-300 hover:text-white hover:bg-black/80'
           }`}
           title={isSaved ? 'Remove from watchlist' : 'Add to watchlist'}
+          aria-label={`${isSaved ? 'Remove' : 'Add'} ${displayName} ${isSaved ? 'from' : 'to'} watchlist`}
+          aria-pressed={isSaved}
         >
           <Bookmark className="w-4 h-4" filled={isSaved} />
         </button>

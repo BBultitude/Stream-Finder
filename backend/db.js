@@ -11,6 +11,8 @@ function getDb() {
     db = new Database(DB_PATH);
     // WAL mode for concurrent read/write safety — required constraint
     db.pragma('journal_mode = WAL');
+    // Safe with WAL (worst case is losing the last commit on power cut, never corruption); far fewer fsyncs on the Pi
+    db.pragma('synchronous = NORMAL');
     db.pragma('foreign_keys = ON');
     initSchema();
   }

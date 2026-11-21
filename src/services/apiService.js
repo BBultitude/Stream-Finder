@@ -15,7 +15,9 @@ async function fetchCached(url) {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = await res.json()
-  cacheSet(url, json)
+  // Never cache an empty list: a freshly started server answers 200 with no rows
+  // while its first refresh runs, and that would stick for hours
+  if (json.results?.length) cacheSet(url, json)
   return json
 }
 
@@ -66,6 +68,7 @@ export async function fetchSearch(query, { providers } = {}) {
   if (!query.trim()) return []
   const qs = buildQuery({ query, providers })
   const res = await fetch('/api/search' + qs)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
   return data.results || []
 }
@@ -107,5 +110,6 @@ export async function fetchLanguages() {
 // Detail uses server-side cache; not cached client-side
 export async function fetchDetail(mediaType, id) {
   const res = await fetch(`/api/detail/${mediaType}/${id}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

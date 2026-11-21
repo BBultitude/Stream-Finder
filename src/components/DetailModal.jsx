@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import PropTypes from 'prop-types'
 import { ArrowLeft, Film, Tv, PlayIcon, Bookmark, Person } from './icons'
 import ContentCard from './ContentCard'
@@ -14,11 +15,32 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
     ? new Date(item.release_date || item.first_air_date).getFullYear()
     : null
 
+  const backRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
+
+  // Behave like a dialog: take focus, close on Escape, stop the page scrolling behind,
+  // and hand focus back to the card that opened it
+  useEffect(() => {
+    const opener = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    backRef.current?.focus()
+    const onKeyDown = (e) => { if (e.key === 'Escape') onCloseRef.current() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      opener?.focus?.()
+    }
+  }, [])
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
+    <div role="dialog" aria-modal="true" aria-labelledby="detail-title" className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
       <div className="min-h-screen px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <button
+            ref={backRef}
             onClick={onClose}
             className="mb-4 flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-white"
           >
@@ -40,7 +62,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
 
               {/* Info */}
               <div className="md:col-span-2">
-                <h1 className="text-4xl font-bold mb-4 text-white">{displayName}</h1>
+                <h2 id="detail-title" className="text-3xl md:text-4xl font-bold mb-4 text-white">{displayName}</h2>
 
                 {/* Metadata badges */}
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -48,7 +70,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                     {isMovie ? 'Movie' : 'TV Show'}
                   </span>
                   {item.vote_average > 0 && (
-                    <span className="px-3 py-1 bg-yellow-600 rounded-full text-sm flex items-center gap-1 text-white">
+                    <span className="px-3 py-1 bg-yellow-700 rounded-full text-sm flex items-center gap-1 text-white">
                       ★ {item.vote_average.toFixed(1)}
                     </span>
                   )}
@@ -81,7 +103,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                           {service.logo && <img src={service.logo} alt={service.name} className="w-6 h-6 rounded" />}
                           <span className="text-sm text-white">{service.name}</span>
                           {service.isNew && (
-                            <span className="px-1.5 py-0.5 bg-green-600 rounded text-[10px] font-semibold text-white leading-tight">New</span>
+                            <span className="px-1.5 py-0.5 bg-green-700 rounded text-[10px] font-semibold text-white leading-tight">New</span>
                           )}
                         </div>
                       ))}
@@ -148,7 +170,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
                       href={`https://www.imdb.com/title/${item.imdb_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-white font-medium transition-colors"
+                      className="px-4 py-2 bg-yellow-700 hover:bg-yellow-800 rounded-lg text-white font-medium transition-colors"
                     >
                       View on IMDb
                     </a>
@@ -169,7 +191,7 @@ export default function DetailModal({ item, similarContent, loadingDetail, onClo
             {item.cast && item.cast.length > 0 && (
               <div className="px-6 pb-6">
                 <h3 className="text-2xl font-bold mb-4 text-white">Cast</h3>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                <div role="region" aria-label="Cast" tabIndex={0} className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400">
                   {item.cast.map(person => (
                     <div key={person.id} className="flex-shrink-0 w-24 text-center">
                       <div className="w-24 h-32 rounded-lg overflow-hidden bg-gray-800 mb-2 flex items-center justify-center">

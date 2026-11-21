@@ -7,6 +7,8 @@ const { runInitialRefreshIfNeeded, startCronJobs } = require('./jobs/refresh');
 
 const app = express();
 app.disable('x-powered-by');
+// Nginx forwards the real client IP (Cloudflare's CF-Connecting-IP) in X-Forwarded-For
+app.set('trust proxy', 'loopback');
 const PORT = process.env.PORT || 3000;
 
 // ─── Routes ──────────────────────────────────────────────────────────────────

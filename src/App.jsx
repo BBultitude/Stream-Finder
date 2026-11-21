@@ -72,7 +72,7 @@ export default function App() {
   const [browseAll, setBrowseAll]             = useState([])
   const [top10Content, setTop10Content]       = useState([])
   const [comingSoonContent, setComingSoonContent] = useState([])
-  const [loading, setLoading]                 = useState(false)
+  const [loading, setLoading]                 = useState(true)
   const [selectedServices, setSelectedServices]           = useState([])
   const [selectedGenres, setSelectedGenres]               = useState([])
   const [selectedContentType, setSelectedContentType]     = useState('all')
@@ -87,6 +87,7 @@ export default function App() {
   const [similarContent, setSimilarContent]   = useState([])
   const [browseAllPage, setBrowseAllPage]     = useState(1)
   const [loadingDetail, setLoadingDetail]     = useState(false)
+  const [searchError, setSearchError]         = useState(false)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [watchlist, setWatchlist]             = useState([])
   const [searchHistory, setSearchHistory]     = useState([])
@@ -94,6 +95,9 @@ export default function App() {
   const searchInputRef = useRef(null)
   const tabScrollPositions = useRef({})
   const prevActiveTab = useRef(activeTab)
+  // Latest-request counters: a slow older response must not overwrite a newer one
+  const searchSeq = useRef(0)
+  const detailSeq = useRef(0)
 
   // Save scroll position when leaving a tab; restore when returning to it
   useEffect(() => {
@@ -237,8 +241,11 @@ export default function App() {
   }, [searchQuery])
 
   const searchContent = async (query) => {
+    const seq = ++searchSeq.current
+    setSearchError(false)
     if (!query.trim()) {
       setResults([])
+      setLoading(false)
       setActiveTab('trending')
       return
     }
@@ -246,23 +253,28 @@ export default function App() {
     setLoading(true)
     try {
       const items = await fetchSearch(query, { providers: getProviderParam() })
+      if (seq !== searchSeq.current) return
       setResults(deduplicateById(items))
       // Save to history after a successful search
       addToSearchHistory(query).then(() =>
         getSearchHistory().then(setSearchHistory).catch(() => {})
       ).catch(() => {})
     } catch {
+      if (seq !== searchSeq.current) return
       setResults([])
+      setSearchError(true)
     }
     setLoading(false)
   }
 
   const handleItemClick = async (item) => {
+    const seq = ++detailSeq.current
     setSelectedItem(item)
     setSimilarContent([])
     setLoadingDetail(true)
     try {
       const data = await fetchDetail(item.media_type, item.id)
+      if (seq !== detailSeq.current) return
       if (data.imdb_id || data.trailer_key !== undefined || data.cast) {
         setSelectedItem(prev => ({
           ...prev,
@@ -277,8 +289,18 @@ export default function App() {
     } catch {
       // detail enrichment is best-effort; item already shown
     }
-    setLoadingDetail(false)
+    if (seq === detailSeq.current) setLoadingDetail(false)
   }
+
+  const getEmptyMessage = () => {
+    if (searchQuery && searchError) return ['Search is unavailable', 'Too many searches or a temporary problem. Wait a moment and try again.']
+    if (searchQuery || selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all') {
+      return ['No results found', 'Try adjusting your filters or search terms']
+    }
+    if (activeTab === 'new') return ['Nothing new lately', 'No titles have arrived on a streaming service in the last 30 days.']
+    return ['Nothing to show yet', "We're still gathering titles. Check back in a few minutes."]
+  }
+  const emptyMessage = getEmptyMessage()
 
   const toggleWatchlist = async (item) => {
     const key = `${item.media_type}:${item.id}`
@@ -347,7 +369,7 @@ export default function App() {
         item={selectedItem}
         similarContent={similarContent}
         loadingDetail={loadingDetail}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => { detailSeq.current++; setSelectedItem(null) }}
         onSimilarClick={handleItemClick}
         isInWatchlist={watchlistKeys.has(`${selectedItem.media_type}:${selectedItem.id}`)}
         onWatchlistToggle={toggleWatchlist}
@@ -389,11 +411,11 @@ export default function App() {
       />
 
       {/* Main content — pb-20 accounts for bottom nav height on mobile */}
-      <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
+      <div role="main" className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
 
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
+        <div className="text-center mb-6 md:mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 md:mb-3 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-transparent bg-clip-text">
             Stream Finder
           </h1>
           <p className="text-gray-300">Find what to watch across all Australian streaming platforms</p>
@@ -406,12 +428,13 @@ export default function App() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 ref={searchInputRef}
-                type="text"
+                type="search"
+                aria-label="Search movies and TV shows"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-                placeholder="Search for movies or TV shows..."
+                placeholder="Search movies & TV shows"
                 className="w-full pl-12 pr-4 py-4 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
               />
               {/* Search history dropdown */}
@@ -421,7 +444,7 @@ export default function App() {
                     <span className="text-xs text-gray-400 font-medium">Recent searches</span>
                     <button
                       onClick={() => { clearSearchHistory().catch(() => {}); setSearchHistory([]) }}
-                      className="text-xs text-gray-500 hover:text-white transition-colors"
+                      className="text-xs text-gray-400 hover:text-white transition-colors"
                     >
                       Clear all
                     </button>
@@ -437,7 +460,8 @@ export default function App() {
                       </button>
                       <button
                         onClick={() => handleDeleteHistory(query)}
-                        className="text-gray-600 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                        aria-label={`Remove ${query} from recent searches`}
+                        className="px-2 py-1 text-gray-400 hover:text-white transition-colors md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
                       >
                         ×
                       </button>
@@ -449,6 +473,7 @@ export default function App() {
             {/* Filter button — mobile only */}
             <button
               onClick={() => setFilterSheetOpen(true)}
+              aria-label="Open filters"
               className="md:hidden flex items-center gap-1 px-4 py-4 bg-gray-800 border border-gray-700 rounded-xl text-gray-300 hover:text-white hover:border-purple-500 transition-all relative"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -526,7 +551,8 @@ export default function App() {
         {loading && activeTab === 'top10' && !searchQuery && (
           <>
             <h2 className="text-2xl font-bold mb-6 text-white">🏆 Top 10 in Australia</h2>
-            <div className="space-y-3 max-w-3xl mx-auto">
+            <div role="status" className="space-y-3 max-w-3xl mx-auto">
+              <span className="sr-only">Loading…</span>
               {SKEL_TOP10.map(k => <SkeletonTop10Row key={k} />)}
             </div>
           </>
@@ -542,7 +568,8 @@ export default function App() {
 
         {/* Grid skeleton */}
         {loading && activeTab !== 'top10' && activeTab !== 'watchlist' && activeTab !== 'coming-soon' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div role="status" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <span className="sr-only">Loading…</span>
             {SKEL_CARDS.map(k => <SkeletonCard key={k} />)}
           </div>
         )}
@@ -591,11 +618,10 @@ export default function App() {
         {/* Empty state */}
         {!loading && displayContent.length === 0 &&
           activeTab !== 'watchlist' &&
-          activeTab !== 'coming-soon' &&
-          (searchQuery || selectedServices.length > 0 || selectedGenres.length > 0 || selectedContentType !== 'all') && (
-          <div className="text-center py-12 text-gray-300">
-            <p className="text-xl mb-2">No results found</p>
-            <p className="text-gray-500">Try adjusting your filters or search terms</p>
+          activeTab !== 'coming-soon' && (
+          <div role="status" className="text-center py-12 text-gray-300">
+            <p className="text-xl mb-2">{emptyMessage[0]}</p>
+            <p className="text-gray-400">{emptyMessage[1]}</p>
           </div>
         )}
 

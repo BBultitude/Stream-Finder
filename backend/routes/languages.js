@@ -8,11 +8,6 @@ const router = Router();
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    // Guard: column may be absent on DBs created before this migration ran
-    const cols = db.prepare('PRAGMA table_info(content)').all();
-    if (!cols.some(c => c.name === 'original_language')) {
-      return res.json({ languages: [] });
-    }
     const rows = db.prepare(`
       SELECT original_language AS code, COUNT(*) AS item_count
       FROM content

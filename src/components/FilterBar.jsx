@@ -12,7 +12,7 @@ export const STREAMING_SERVICES = [
   { id: 'max',       name: 'Max',         providerIds: [1899],            color: 'bg-purple-700' },
   { id: 'appletv',   name: 'Apple TV+',   providerIds: [350],             color: 'bg-gray-800'   },
   { id: 'foxtel',    name: 'Foxtel Now',  providerIds: [130],             color: 'bg-red-700'    },
-  { id: 'britbox',   name: 'BritBox',     providerIds: [151],             color: 'bg-yellow-600' },
+  { id: 'britbox',   name: 'BritBox',     providerIds: [151],             color: 'bg-yellow-700' },
 ]
 
 export const GENRES = [
@@ -227,7 +227,7 @@ export default function FilterBar({
             onClick={() => onMinRatingChange(id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
               selectedMinRating === id
-                ? 'bg-yellow-600 text-white shadow-lg'
+                ? 'bg-yellow-700 text-white shadow-lg'
                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
             }`}
           >

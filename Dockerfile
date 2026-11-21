@@ -1,6 +1,6 @@
 # ─── Stage 1: Build frontend ──────────────────────────────────────────────────
 # Vite + React + Tailwind — build tools stay in this stage only
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -14,15 +14,15 @@ RUN npm run build
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 # IMP-03: Node.js + Express backend alongside Nginx inside a single container.
 # supervisord manages both processes. SQLite data mounted at /data (Docker volume).
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Install nginx, supervisor, and build tools required by better-sqlite3
 RUN apk add --no-cache nginx supervisor python3 make g++
 
 # ── Backend: install dependencies ────────────────────────────────────────────
 WORKDIR /app/backend
-COPY backend/package.json .
-RUN npm install --production \
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci --omit=dev \
     && apk del python3 make g++
 
 # Copy remaining backend source

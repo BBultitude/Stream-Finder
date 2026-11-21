@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import PropTypes from 'prop-types'
 import { X } from './icons'
 import { STREAMING_SERVICES, GENRES, DECADES, RATING_OPTIONS, AGE_RATINGS, LANGUAGE_LABELS, filterPropTypes } from './FilterBar'
@@ -22,6 +23,13 @@ export default function FilterSheet({
   onClearAll,
   onSurpriseMe
 }) {
+  useEffect(() => {
+    if (!open) return undefined
+    const onKeyDown = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose])
+
   if (!open) return null
 
   const hasFilters = selectedServices.length > 0 || selectedGenres.length > 0 ||
@@ -35,17 +43,17 @@ export default function FilterSheet({
         type="button"
         className="md:hidden fixed inset-0 z-40 bg-black/60"
         onClick={onClose}
-        aria-label="Close filters"
-        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
       {/* Sheet */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-2xl border-t border-gray-700 max-h-[85vh] overflow-y-auto pb-safe">
+      <div role="dialog" aria-modal="true" aria-label="Filters" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-2xl border-t border-gray-700 max-h-[85vh] overflow-y-auto pb-[env(safe-area-inset-bottom)]">
         {/* Handle + header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-800">
           <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-2" />
           <h2 className="text-lg font-semibold text-white">Filters</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-1">
+          <button onClick={onClose} aria-label="Close filters" className="text-gray-400 hover:text-white p-2">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -151,7 +159,7 @@ export default function FilterSheet({
                   onClick={() => onMinRatingChange(id)}
                   className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     selectedMinRating === id
-                      ? 'bg-yellow-600 text-white shadow-lg'
+                      ? 'bg-yellow-700 text-white shadow-lg'
                       : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                   }`}
                 >

@@ -24,13 +24,15 @@ export default function BottomNav({ activeTab, onTabChange, onSearchFocus, watch
   }
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-gray-700 flex">
+    <nav aria-label="Main" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-gray-700 flex pb-[env(safe-area-inset-bottom)]">
       {TABS.map(({ id, label, Icon }) => {
         const isActive = activeTab === id
         return (
           <button
             key={id}
             onClick={() => handleTap(id)}
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={id === 'watchlist' && watchlistCount > 0 ? `${label}, ${watchlistCount} saved` : undefined}
             className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
               isActive ? 'text-purple-400' : 'text-gray-400 hover:text-gray-200'
             }`}

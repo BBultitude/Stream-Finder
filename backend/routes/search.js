@@ -4,24 +4,13 @@ const { Router } = require('express');
 const { getDb } = require('../db');
 const { shapeItem, buildStreamingMap } = require('../utils/contentHelper');
 const { computeDisplayStatus } = require('../utils/displayStatus');
+const { parseProviderIds } = require('../utils/routeHelpers');
+const { tmdbGet } = require('../utils/tmdb');
+const { createRateLimiter } = require('../utils/rateLimit');
 
 const router = Router();
-const TMDB_BASE = 'https://api.themoviedb.org/3';
-
-// Simple sliding-window rate limiter: max 10 requests per IP per 60 seconds
-const _rateLimitWindows = new Map();
-function isRateLimited(ip) {
-  const now = Date.now();
-  const windowStart = now - 60_000;
-  const timestamps = (_rateLimitWindows.get(ip) || []).filter(t => t > windowStart);
-  if (timestamps.length >= 10) {
-    _rateLimitWindows.set(ip, timestamps);
-    return true;
-  }
-  timestamps.push(now);
-  _rateLimitWindows.set(ip, timestamps);
-  return false;
-}
+const limiter = createRateLimiter({ max: 10, windowMs: 60_000 });
+const MAX_QUERY_LENGTH = 100;
 
 /**
  * GET /api/search
@@ -31,30 +20,24 @@ function isRateLimited(ip) {
  *   query     — search string (required)
  *   providers — comma-separated TMDB provider IDs to filter results by (optional)
  */
-router.get('/', async (req, res) => {
-  const ip = req.ip || req.socket.remoteAddress || 'unknown';
-  if (isRateLimited(ip)) {
-    return res.status(429).json({ results: [], error: 'Too many requests' });
-  }
-
+router.get('/', limiter, async (req, res) => {
   const { query, providers } = req.query;
 
-  if (!query?.trim()) {
+  // ?query=a&query=b arrives as an array; only a plain string is a valid search
+  if (typeof query !== 'string' || !query.trim()) {
     return res.json({ results: [] });
   }
 
   try {
-    const apiKey = process.env.TMDB_API_KEY;
-    if (!apiKey) throw new Error('TMDB_API_KEY not configured');
-
-    const baseUrl = `${TMDB_BASE}/search/multi?api_key=${apiKey}&language=en-US&query=${encodeURIComponent(query.trim())}`;
+    const q = encodeURIComponent(query.trim().slice(0, MAX_QUERY_LENGTH));
+    const path = `/search/multi?language=en-US&query=${q}`;
     const [page1, page2] = await Promise.all([
-      fetch(baseUrl + '&page=1').then(r => { if (!r.ok) { throw new Error(`HTTP ${r.status}`); } return r.json(); }),
-      fetch(baseUrl + '&page=2').then(r => r.ok ? r.json() : { results: [] }).catch(() => ({ results: [] }))
+      tmdbGet(`${path}&page=1`, { maxAttempts: 1 }),
+      tmdbGet(`${path}&page=2`, { maxAttempts: 1 }).catch(() => ({ results: [] }))
     ]);
 
     const seen = new Set();
-    let items = [...(page1.results || []), ...(page2.results || [])]
+    const items = [...(page1.results || []), ...(page2.results || [])]
       .filter(item => {
         if (item.media_type !== 'movie' && item.media_type !== 'tv') return false;
         const key = `${item.media_type}:${item.id}`;
@@ -83,7 +66,8 @@ router.get('/', async (req, res) => {
       shaped.display_status = dbStatusMap[key] || computeDisplayStatus({
         tmdbStatus: null,
         releaseDate: item.release_date || item.first_air_date,
-        hasAuStreaming: streaming.length > 0
+        hasAuStreaming: streaming.length > 0,
+        mediaType: item.media_type
       });
       return shaped;
     });
@@ -102,11 +86,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ results: [], error: 'Search failed' });
   }
 });
-
-function parseProviderIds(str) {
-  if (!str) return [];
-  return str.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
-}
 
 /**
  * Fetch display_status from the content table for items that are in the DB.

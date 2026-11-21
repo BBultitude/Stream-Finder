@@ -4,7 +4,7 @@ const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres } = require('../utils/contentHelper');
 const { buildCertClause, buildLanguageFilterClause } = require('../utils/certOrder');
-const { parseProviderIds, buildTypeClause } = require('../utils/routeHelpers');
+const { parseProviderIds, buildTypeClause, CONTENT_COLS } = require('../utils/routeHelpers');
 
 const router = Router();
 
@@ -27,56 +27,35 @@ router.get('/', (req, res) => {
     const { type, providers, maxCertification, languageFilter } = req.query;
 
     const cutoff = Date.now() - DAYS_30_MS;
+
     const providerIds = parseProviderIds(providers);
-    const params = [];
+    const providerClause = providerIds.length
+      ? `AND sa.provider_id IN (${providerIds.map(() => '?').join(',')})`
+      : '';
+    // Params in SQL order: provider ids (JOIN), then the cutoff, then the filter clauses
+    const params = [...providerIds, cutoff];
     const typeClause = buildTypeClause(type, params);
     const certClause = buildCertClause(maxCertification, params);
     const langClause = buildLanguageFilterClause(languageFilter || null, params);
 
-    let rows;
-    if (providerIds.length > 0) {
-      const ph = providerIds.map(() => '?').join(',');
-      rows = db.prepare(`
-        SELECT c.id, c.media_type, c.title, c.overview, c.poster_path,
-          c.release_date, c.vote_average, c.popularity, c.display_status,
-          c.runtime, c.number_of_seasons, c.number_of_episodes, c.certification
-        FROM content c
-        INNER JOIN streaming_availability sa
-          ON sa.content_id = c.id
-          AND sa.content_media_type = c.media_type
-          AND sa.region = 'AU'
-          AND sa.type = 'flatrate'
-          AND sa.provider_id IN (${ph})
-        WHERE c.display_status = 'streaming'
-          AND sa.first_seen >= ?
-          ${typeClause}
-          ${certClause}
-          ${langClause}
-        GROUP BY c.id, c.media_type
-        ORDER BY MAX(sa.first_seen) DESC
-        LIMIT 100
-      `).all(...providerIds, cutoff, ...params);
-    } else {
-      rows = db.prepare(`
-        SELECT c.id, c.media_type, c.title, c.overview, c.poster_path,
-          c.release_date, c.vote_average, c.popularity, c.display_status,
-          c.runtime, c.number_of_seasons, c.number_of_episodes, c.certification
-        FROM content c
-        INNER JOIN streaming_availability sa
-          ON sa.content_id = c.id
-          AND sa.content_media_type = c.media_type
-          AND sa.region = 'AU'
-          AND sa.type = 'flatrate'
-        WHERE c.display_status = 'streaming'
-          AND sa.first_seen >= ?
-          ${typeClause}
-          ${certClause}
-          ${langClause}
-        GROUP BY c.id, c.media_type
-        ORDER BY MAX(sa.first_seen) DESC
-        LIMIT 100
-      `).all(cutoff, ...params);
-    }
+    const rows = db.prepare(`
+      SELECT ${CONTENT_COLS}
+      FROM content c
+      INNER JOIN streaming_availability sa
+        ON sa.content_id = c.id
+        AND sa.content_media_type = c.media_type
+        AND sa.region = 'AU'
+        AND sa.type = 'flatrate'
+        ${providerClause}
+      WHERE c.display_status = 'streaming'
+        AND sa.first_seen >= ?
+        ${typeClause}
+        ${certClause}
+        ${langClause}
+      GROUP BY c.id, c.media_type
+      ORDER BY MAX(sa.first_seen) DESC
+      LIMIT 100
+    `).all(...params);
 
     res.json({ results: attachStreamingAndGenres(db, rows) });
   } catch (err) {

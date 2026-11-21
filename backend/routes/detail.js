@@ -3,13 +3,22 @@
 const { Router } = require('express');
 const { getDb } = require('../db');
 const { attachStreamingAndGenres, buildStreamingMap } = require('../utils/contentHelper');
+const { tmdbGet } = require('../utils/tmdb');
+const { CONTENT_COLS } = require('../utils/routeHelpers');
+const { createRateLimiter } = require('../utils/rateLimit');
 
 const router = Router();
-const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Simple in-process cache for detail responses (1-hour TTL)
+// User-facing calls never wait through 429 retries
+const FAST = { maxAttempts: 1 };
+
+// Each uncached detail costs 4 TMDB calls, so cap what one visitor can trigger
+const limiter = createRateLimiter({ max: 60, windowMs: 60_000 });
+
+// Simple in-process cache for detail responses (1-hour TTL, oldest entry evicted past the cap)
 const detailCache = new Map();
 const DETAIL_TTL_MS = 60 * 60 * 1000;
+const DETAIL_CACHE_MAX = 500;
 
 /**
  * GET /api/detail/:type/:id
@@ -20,7 +29,7 @@ const DETAIL_TTL_MS = 60 * 60 * 1000;
  *
  * API key stays server-side.
  */
-router.get('/:type/:id', async (req, res) => {
+router.get('/:type/:id', limiter, async (req, res) => {
   const { type, id } = req.params;
   const contentId = Number.parseInt(id, 10);
 
@@ -35,9 +44,6 @@ router.get('/:type/:id', async (req, res) => {
   }
 
   try {
-    const apiKey = process.env.TMDB_API_KEY;
-    if (!apiKey) throw new Error('TMDB_API_KEY not configured');
-
     const db = getDb();
 
     // Synchronous DB lookups for source item (needed for local recommendations + watchlist refresh)
@@ -54,11 +60,18 @@ router.get('/:type/:id', async (req, res) => {
 
     // Fetch external_ids, recommendations, videos, and credits in parallel.
     // All calls have individual fallbacks so a single TMDB failure doesn't 404 the whole detail.
+    // A degraded result is still sent but not cached, so the next open retries TMDB.
+    let degraded = false;
+    const soft = (name, fallback) => err => {
+      degraded = true;
+      console.warn(`[detail] ${name} fallback:`, err.message);
+      return fallback;
+    };
     const [externalIds, recsData, videosData, creditsData] = await Promise.all([
-      tmdbGet(`/${type}/${contentId}/external_ids`, apiKey).catch(err => { console.warn('[detail] external_ids fallback:', err.message); return {}; }),
-      fetchRecommendations(type, contentId, apiKey),
-      tmdbGet(`/${type}/${contentId}/videos`, apiKey).catch(err => { console.warn('[detail] videos fallback:', err.message); return { results: [] }; }),
-      tmdbGet(`/${type}/${contentId}/credits`, apiKey).catch(err => { console.warn('[detail] credits fallback:', err.message); return { cast: [] }; })
+      tmdbGet(`/${type}/${contentId}/external_ids`, FAST).catch(soft('external_ids', {})),
+      fetchRecommendations(type, contentId).catch(soft('recommendations', [])),
+      tmdbGet(`/${type}/${contentId}/videos`, FAST).catch(soft('videos', { results: [] })),
+      tmdbGet(`/${type}/${contentId}/credits`, FAST).catch(soft('credits', { cast: [] }))
     ]);
 
     // Hybrid recommendations: TMDB recs (streaming-only from DB) + local genre-similarity,
@@ -81,7 +94,10 @@ router.get('/:type/:id', async (req, res) => {
       display_status: contentRow?.display_status || null
     };
 
-    detailCache.set(cacheKey, { data: result, ts: Date.now() });
+    if (!degraded) {
+      detailCache.set(cacheKey, { data: result, ts: Date.now() });
+      if (detailCache.size > DETAIL_CACHE_MAX) detailCache.delete(detailCache.keys().next().value);
+    }
     res.json(result);
   } catch (err) {
     console.error(`[GET /api/detail/${type}/${contentId}]`, err.message);
@@ -100,25 +116,15 @@ function enrichRecommendations(db, recsData, fallbackType, sourceId, sourceGenre
   const tmdbItems = recsData.map(r => ({ ...r, media_type: r.media_type || fallbackType }));
 
   // Filter TMDB recs to items in our DB with streaming status only
-  const movieIds = tmdbItems.filter(i => i.media_type === 'movie').map(i => i.id);
-  const tvIds    = tmdbItems.filter(i => i.media_type === 'tv').map(i => i.id);
   const tmdbDbRows = [];
-
-  if (movieIds.length) {
-    const ph = movieIds.map(() => '?').join(',');
+  for (const mediaType of ['movie', 'tv']) {
+    const ids = tmdbItems.filter(i => i.media_type === mediaType).map(i => i.id);
+    if (ids.length === 0) continue;
     tmdbDbRows.push(...db.prepare(`
-      SELECT id, media_type, title, overview, poster_path, release_date, vote_average,
-        popularity, display_status, runtime, number_of_seasons, number_of_episodes, certification
-      FROM content WHERE media_type = 'movie' AND id IN (${ph}) AND display_status = 'streaming'
-    `).all(...movieIds));
-  }
-  if (tvIds.length) {
-    const ph = tvIds.map(() => '?').join(',');
-    tmdbDbRows.push(...db.prepare(`
-      SELECT id, media_type, title, overview, poster_path, release_date, vote_average,
-        popularity, display_status, runtime, number_of_seasons, number_of_episodes, certification
-      FROM content WHERE media_type = 'tv' AND id IN (${ph}) AND display_status = 'streaming'
-    `).all(...tvIds));
+      SELECT ${CONTENT_COLS}
+      FROM content c
+      WHERE c.media_type = ? AND c.id IN (${ids.map(() => '?').join(',')}) AND c.display_status = 'streaming'
+    `).all(mediaType, ...ids));
   }
 
   // Local DB similarity recs by genre overlap (pure SQL, no API calls)
@@ -149,9 +155,7 @@ function buildLocalRecommendations(db, contentId, mediaType, genreIds) {
   if (!genreIds || genreIds.length === 0) return [];
   const ph = genreIds.map(() => '?').join(',');
   return db.prepare(`
-    SELECT c.id, c.media_type, c.title, c.overview, c.poster_path, c.release_date,
-      c.vote_average, c.popularity, c.display_status, c.runtime,
-      c.number_of_seasons, c.number_of_episodes, c.certification,
+    SELECT ${CONTENT_COLS},
       COUNT(DISTINCT cg2.genre_id) AS shared_genres
     FROM content c
     JOIN content_genres cg2
@@ -165,9 +169,9 @@ function buildLocalRecommendations(db, contentId, mediaType, genreIds) {
   `).all(...genreIds, contentId, mediaType);
 }
 
-async function fetchRecommendations(type, id, apiKey) {
+async function fetchRecommendations(type, id) {
   try {
-    const data = await tmdbGet(`/${type}/${id}/recommendations?page=1`, apiKey);
+    const data = await tmdbGet(`/${type}/${id}/recommendations?page=1`, FAST);
     if (data.results && data.results.length > 0) {
       return data.results.slice(0, 12).map(r => ({ ...r, media_type: r.media_type || type }));
     }
@@ -175,13 +179,9 @@ async function fetchRecommendations(type, id, apiKey) {
     console.warn('[detail] recommendations fallback to similar:', err.message);
   }
 
-  try {
-    const data = await tmdbGet(`/${type}/${id}/similar?page=1`, apiKey);
-    return (data.results || []).slice(0, 12).map(r => ({ ...r, media_type: type }));
-  } catch (err) {
-    console.warn('[detail] similar fallback empty:', err.message);
-    return [];
-  }
+  // If this also fails the caller's .catch marks the result degraded
+  const data = await tmdbGet(`/${type}/${id}/similar?page=1`, FAST);
+  return (data.results || []).slice(0, 12).map(r => ({ ...r, media_type: type }));
 }
 
 /**
@@ -196,13 +196,6 @@ function findTrailerKey(videosData) {
     videos.find(v => v.type === 'Teaser')?.key ||
     null
   );
-}
-
-async function tmdbGet(path, apiKey) {
-  const sep = path.includes('?') ? '&' : '?';
-  const res = await fetch(`${TMDB_BASE}${path}${sep}api_key=${apiKey}`);
-  if (!res.ok) throw new Error(`TMDB ${path} returned HTTP ${res.status}`);
-  return res.json();
 }
 
 module.exports = router;

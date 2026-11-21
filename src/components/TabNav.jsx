@@ -3,12 +3,13 @@ import { TrendingUp, Sparkles, Grid, Bookmark, Calendar } from './icons'
 
 export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
   return (
-    <div className="max-w-4xl mx-auto mb-8 flex gap-3 flex-wrap">
+    <nav aria-label="Sections" className="max-w-5xl mx-auto mb-8 flex gap-3 flex-wrap">
       <button
         onClick={() => onTabChange('trending')}
+        aria-current={activeTab === 'trending' ? 'page' : undefined}
         className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
           activeTab === 'trending'
-            ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg'
+            ? 'bg-gradient-to-r from-orange-700 to-red-700 text-white shadow-lg'
             : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
         }`}
       >
@@ -18,6 +19,7 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
 
       <button
         onClick={() => onTabChange('new')}
+        aria-current={activeTab === 'new' ? 'page' : undefined}
         className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
           activeTab === 'new'
             ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
@@ -30,9 +32,10 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
 
       <button
         onClick={() => onTabChange('browse')}
+        aria-current={activeTab === 'browse' ? 'page' : undefined}
         className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
           activeTab === 'browse'
-            ? 'bg-gradient-to-r from-green-600 to-teal-600 text-white shadow-lg'
+            ? 'bg-gradient-to-r from-green-700 to-teal-700 text-white shadow-lg'
             : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
         }`}
       >
@@ -42,9 +45,10 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
 
       <button
         onClick={() => onTabChange('top10')}
+        aria-current={activeTab === 'top10' ? 'page' : undefined}
         className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
           activeTab === 'top10'
-            ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+            ? 'bg-gradient-to-r from-amber-700 to-orange-700 text-white shadow-lg'
             : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
         }`}
       >
@@ -53,6 +57,7 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
 
       <button
         onClick={() => onTabChange('coming-soon')}
+        aria-current={activeTab === 'coming-soon' ? 'page' : undefined}
         className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
           activeTab === 'coming-soon'
             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
@@ -65,6 +70,7 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
 
       <button
         onClick={() => onTabChange('watchlist')}
+        aria-current={activeTab === 'watchlist' ? 'page' : undefined}
         className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all relative ${
           activeTab === 'watchlist'
             ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
@@ -79,7 +85,7 @@ export default function TabNav({ activeTab, onTabChange, watchlistCount }) {
           </span>
         )}
       </button>
-    </div>
+    </nav>
   )
 }
 
